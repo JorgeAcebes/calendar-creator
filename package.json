@@ -1,0 +1,36 @@
+{
+  "name": "calendar-creator-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Professional calendar creator with print-ready PDF export (300 DPI, CMYK, bleed marks)",
+  "author": "Jorge",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@11.5.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "clean": "turbo run clean && rimraf node_modules",
+    "dev:web": "pnpm --filter @calendar-creator/web dev",
+    "dev:api": "pnpm --filter @calendar-creator/api start:dev",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "rimraf": "^6.0.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "esbuild",
+      "msgpackr-extract",
+      "sharp"
+    ]
+  }
+}

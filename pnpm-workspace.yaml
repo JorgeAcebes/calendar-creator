@@ -1,0 +1,13 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  '@nestjs/core': true
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  core-js: set this to true or false
+ignoreScripts: true
