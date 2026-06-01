@@ -54,13 +54,15 @@ const CalendarCanvas: React.FC = () => {
     };
   }, [paperDimensions, bleed, canvasScale]);
 
-  const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
   const assignImage = useCalendarStore((s) => s.assignImageToRegion);
+  const lastDistRef = useRef<number>(0);
 
   // Safe area (5mm from trim on each side)
   const safeMargin = toCanvasPx(5, canvasScale);
 
   if (!page) return null;
+
+  const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
   const handleWheel = (e: any) => {
     e.evt.preventDefault();
@@ -68,6 +70,31 @@ const CalendarCanvas: React.FC = () => {
     const oldScale = canvasScale;
     const newScale = oldScale * scaleBy;
     setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+  };
+
+  const handleTouchMove = (e: any) => {
+    e.evt.preventDefault();
+    const touch1 = e.evt.touches[0];
+    const touch2 = e.evt.touches[1];
+
+    if (touch1 && touch2) {
+      const dist = Math.hypot(touch1.clientX - touch2.clientX, touch1.clientY - touch2.clientY);
+      if (!lastDistRef.current) { 
+        lastDistRef.current = dist; 
+        return; 
+      }
+      
+      const scaleBy = dist / lastDistRef.current;
+      lastDistRef.current = dist;
+      
+      const oldScale = canvasScale;
+      const newScale = oldScale * scaleBy;
+      setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    lastDistRef.current = 0;
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -80,12 +107,11 @@ const CalendarCanvas: React.FC = () => {
       const data = JSON.parse(payload);
       if (data.type !== 'gallery-image') return;
       
-      stageRef.current.setPointersPositions(e.nativeEvent);
-      const pos = stageRef.current.getPointerPosition();
-      if (!pos) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
       // Find region
-      const droppedRegion = page.imageRegions.find((r: any) => {
+      const droppedRegionIndex = page.imageRegions.findIndex((r: any) => {
         const x = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
         const y = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
         const w = toCanvasPx(r.mask.widthMm, canvasScale);
@@ -93,18 +119,31 @@ const CalendarCanvas: React.FC = () => {
         return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
       });
 
-      if (droppedRegion) {
-        // Check if image is already used
-        const usedIn = project.pages.some((p: any) => p.imageRegions.some((r: any) => r.imageFileId === data.id));
-        if (usedIn && project.globalSettings.warnOnDuplicatePhotos !== false) {
-          alert('Aviso: Esta foto ya está siendo utilizada en otra página del calendario.');
-        }
+      const imageIds = data.ids || (data.id ? [data.id] : []);
+      if (imageIds.length === 0) return;
 
-        assignImage(page.index, droppedRegion.id, data.id);
-        selectRegion(droppedRegion.id);
+      if (droppedRegionIndex >= 0) {
+        assignImage(page.index, page.imageRegions[droppedRegionIndex].id, imageIds[0]);
+        selectRegion(page.imageRegions[droppedRegionIndex].id);
+        
+        let remainingIds = imageIds.slice(1);
+        if (remainingIds.length > 0) {
+          const emptyRegions = page.imageRegions.filter((r: any, idx: number) => idx !== droppedRegionIndex && !r.imageFileId);
+          for (let i = 0; i < Math.min(remainingIds.length, emptyRegions.length); i++) {
+            assignImage(page.index, emptyRegions[i].id, remainingIds[i]);
+          }
+          remainingIds = remainingIds.slice(emptyRegions.length);
+          
+          if (remainingIds.length > 0) {
+            const filledRegions = page.imageRegions.filter((r: any, idx: number) => idx !== droppedRegionIndex && !!r.imageFileId);
+            for (let i = 0; i < Math.min(remainingIds.length, filledRegions.length); i++) {
+              assignImage(page.index, filledRegions[i].id, remainingIds[i]);
+            }
+          }
+        }
       }
     } catch (err) {
-      // ignore
+      console.error(err);
     }
   };
 
@@ -120,6 +159,9 @@ const CalendarCanvas: React.FC = () => {
         width={dims.totalW}
         height={dims.totalH}
         onWheel={handleWheel}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
         onClick={(e) => {
           // Deselect when clicking on empty canvas area
           if (e.target === stageRef.current) {

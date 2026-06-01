@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, X, AlertTriangle, CheckCircle2, Heart } from 'lucide-react';
+import { Trash2, Upload, AlertTriangle, Heart, CheckCircle2, CheckSquare, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import type { UploadedImage } from '@calendar-creator/shared-types';
@@ -168,8 +168,21 @@ const PhotoPanel: React.FC = () => {
 
   const [duplicateWarning, setDuplicateWarning] = React.useState<string | null>(null);
   const [pendingImageId, setPendingImageId] = React.useState<string | null>(null);
+  const [selectionMode, setSelectionMode] = React.useState(false);
+  const [selectedImageIds, setSelectedImageIds] = React.useState<Set<string>>(new Set());
 
-  const handleThumbnailClick = (imageId: string) => {
+  const handleThumbnailClick = (e: React.MouseEvent, imageId: string) => {
+    if (selectionMode || e.ctrlKey || e.metaKey) {
+      if (!selectionMode && !selectedImageIds.has(imageId)) {
+        setSelectionMode(true);
+      }
+      const next = new Set(selectedImageIds);
+      if (next.has(imageId)) next.delete(imageId);
+      else next.add(imageId);
+      setSelectedImageIds(next);
+      return;
+    }
+
     if (!selectedRegionId || !activePage) return;
 
     const usedIn = findImageUsage(imageId);
@@ -188,7 +201,11 @@ const PhotoPanel: React.FC = () => {
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, imageId: string) => {
-    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'gallery-image', id: imageId }));
+    let idsToDrag = [imageId];
+    if (selectedImageIds.has(imageId)) {
+      idsToDrag = Array.from(selectedImageIds);
+    }
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'gallery-image', ids: idsToDrag }));
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -206,9 +223,19 @@ const PhotoPanel: React.FC = () => {
       </div>
 
       <div className="panel-section">
-        <div className="panel-section__header">
-          <span className="panel-section__title">Fotos</span>
-          <span className="badge">{imageList.length}</span>
+        <div className="panel-section__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="panel-section__title">Fotos</span>
+            <span className="badge">{imageList.length}</span>
+          </div>
+          <button 
+            className={`btn btn--icon ${selectionMode ? 'btn--primary' : 'btn--ghost'}`}
+            style={{ width: 28, height: 28, padding: 0 }}
+            onClick={() => { setSelectionMode(!selectionMode); setSelectedImageIds(new Set()); }}
+            title="Selección múltiple"
+          >
+            <CheckSquare size={16} />
+          </button>
         </div>
 
         {/* Upload dropzone */}
@@ -247,6 +274,23 @@ const PhotoPanel: React.FC = () => {
         </label>
       </div>
 
+      {/* Bulk actions */}
+      {selectionMode && selectedImageIds.size > 0 && (
+        <div style={{ padding: '0 var(--space-4) var(--space-3)' }}>
+          <button 
+            className="btn" 
+            style={{ width: '100%', background: 'var(--color-danger)', color: '#fff', borderColor: 'transparent' }}
+            onClick={() => {
+              selectedImageIds.forEach(id => removeImage(id));
+              setSelectedImageIds(new Set());
+              setSelectionMode(false);
+            }}
+          >
+            <Trash2 size={14} /> Eliminar {selectedImageIds.size} foto{selectedImageIds.size > 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
+
       {/* Image gallery */}
       {imageList.length > 0 && (
         <div className="panel-section" style={{ flex: 1, overflowY: 'auto' }}>
@@ -280,24 +324,31 @@ const PhotoPanel: React.FC = () => {
             {imageList.map((img) => {
               const isLowRes = img.widthPx < 1200 && img.heightPx < 1200;
               const used = !!findImageUsage(img.id);
+              const isSelected = selectedImageIds.has(img.id);
 
               return (
                 <div
                   key={img.id}
-                  className={`thumbnail animate-scale-in ${isLowRes ? 'thumbnail--low-dpi' : ''}`}
-                  onClick={() => handleThumbnailClick(img.id)}
+                  className={`thumbnail animate-scale-in ${isLowRes ? 'thumbnail--low-dpi' : ''} ${isSelected ? 'thumbnail--selected' : ''}`}
+                  onClick={(e) => handleThumbnailClick(e, img.id)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, img.id)}
                   title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`}
+                  style={isSelected ? { outline: '3px solid var(--color-primary)' } : {}}
                 >
                   <img
                     src={img.previewDataUrl ?? img.thumbnailPath}
                     alt={img.originalFilename}
                     draggable={false}
                   />
-                  {used && (
+                  {used && !isSelected && (
                     <div style={{ position: 'absolute', top: 4, left: 4, background: '#12121a', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                       <CheckCircle2 size={14} color="#2ed573" />
+                    </div>
+                  )}
+                  {isSelected && (
+                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--color-primary)', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                      <CheckSquare size={14} color="#fff" />
                     </div>
                   )}
                   {isLowRes && (
