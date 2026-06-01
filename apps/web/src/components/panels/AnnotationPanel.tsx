@@ -138,8 +138,8 @@ const AnnotationPanel: React.FC = () => {
           </label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
             {annotations
-              .sort((a, b) => a.day - b.day)
-              .map((ann) => (
+              .sort((a: any, b: any) => a.day - b.day)
+              .map((ann: any) => (
                 <div
                   key={ann.day}
                   style={{

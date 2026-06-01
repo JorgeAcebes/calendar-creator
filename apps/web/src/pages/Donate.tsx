@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CreditCard, Heart, Smartphone, Coffee } from 'lucide-react';
+import { ArrowLeft, Heart, Smartphone, Coffee } from 'lucide-react';
 import { DONATION_CONFIG } from '@/config/donations';
 
 const Donate: React.FC = () => {

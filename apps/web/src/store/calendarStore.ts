@@ -490,7 +490,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page) return;
-          const region = page.imageRegions.find((r) => r.id === regionId);
+          const region = page.imageRegions.find((r: any) => r.id === regionId);
           if (region) {
             region.imageFileId = imageId;
             region.transform = { scale: 1, offsetXMm: 0, offsetYMm: 0 };
@@ -503,7 +503,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page) return;
-          const region = page.imageRegions.find((r) => r.id === regionId);
+          const region = page.imageRegions.find((r: any) => r.id === regionId);
           if (region) {
             region.imageFileId = null;
             region.transform = { scale: 1, offsetXMm: 0, offsetYMm: 0 };
@@ -516,7 +516,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page) return;
-          const region = page.imageRegions.find((r) => r.id === regionId);
+          const region = page.imageRegions.find((r: any) => r.id === regionId);
           if (region) {
             Object.assign(region.transform, transform);
             state.project.updatedAt = new Date().toISOString();
@@ -528,8 +528,8 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page) return;
-          const r1 = page.imageRegions.find((r) => r.id === regionId1);
-          const r2 = page.imageRegions.find((r) => r.id === regionId2);
+          const r1 = page.imageRegions.find((r: any) => r.id === regionId1);
+          const r2 = page.imageRegions.find((r: any) => r.id === regionId2);
           if (r1 && r2) {
             const tempFileId = r1.imageFileId;
             const tempTransform = { ...r1.transform };
@@ -549,7 +549,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page) return;
-          const region = page.imageRegions.find((r) => r.id === regionId);
+          const region = page.imageRegions.find((r: any) => r.id === regionId);
           if (region) {
             region.clipToSafeArea = clip;
             state.project.updatedAt = new Date().toISOString();
@@ -562,7 +562,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page?.calendarGrid) return;
-          const existing = page.calendarGrid.annotations.findIndex((a) => a.day === annotation.day);
+          const existing = page.calendarGrid.annotations.findIndex((a: any) => a.day === annotation.day);
           if (existing >= 0) {
             page.calendarGrid.annotations[existing] = annotation;
           } else {
@@ -576,7 +576,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page?.calendarGrid) return;
-          page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a) => a.day !== day);
+          page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a: any) => a.day !== day);
           state.project.updatedAt = new Date().toISOString();
         });
       },
@@ -699,7 +699,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         const state = get();
         const page = state.project.pages[state.editor.activePageIndex];
         if (!page || !state.editor.selectedRegionId) return null;
-        return page.imageRegions.find((r) => r.id === state.editor.selectedRegionId) ?? null;
+        return page.imageRegions.find((r: any) => r.id === state.editor.selectedRegionId) ?? null;
       },
     })),
     {

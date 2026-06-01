@@ -172,7 +172,7 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
           const originY = mmToPx(bleed.topMm, 300) * canvasScale;
           
           // Find if dropped on another region
-          const droppedRegion = page.imageRegions.find(r => {
+          const droppedRegion = page.imageRegions.find((r: any) => {
             if (r.id === region.id) return false; // don't swap with self
             const x = originX + mmToPx(r.mask.xMm, 300) * canvasScale;
             const y = originY + mmToPx(r.mask.yMm, 300) * canvasScale;

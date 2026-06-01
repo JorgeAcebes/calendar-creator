@@ -29,7 +29,7 @@ const PageNavigator: React.FC = () => {
 
   return (
     <div className="page-nav">
-      {pages.map((page) => (
+      {pages.map((page: any) => (
         <button
           key={page.index}
           className={`page-nav__item ${activeIndex === page.index ? 'page-nav__item--active' : ''}`}

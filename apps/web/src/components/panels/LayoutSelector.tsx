@@ -61,7 +61,7 @@ const LayoutSelector: React.FC = () => {
                 overflow: 'hidden',
               }}>
                 {/* Image Zones */}
-                {layout.dropzones.map((dz) => {
+                {layout.dropzones.map((dz: any) => {
                   const xPct = (dz.xMm / paper.widthMm) * 100;
                   const yPct = (dz.yMm / paper.heightMm) * 100;
                   const wPct = (dz.widthMm / paper.widthMm) * 100;

@@ -156,7 +156,7 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
         </Layer>
 
         <Layer x={dims.originX} y={dims.originY}>
-          {page.imageRegions.map((region) => (
+          {page.imageRegions.map((region: any) => (
             <MaskedImage
               key={region.id}
               region={region}

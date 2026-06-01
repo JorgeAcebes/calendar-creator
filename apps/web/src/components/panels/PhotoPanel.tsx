@@ -33,7 +33,7 @@ const PhotoPanel: React.FC = () => {
 
       for (const file of acceptedFiles) {
         if (warnOnDuplicate) {
-          const existsInStore = currentImages.some(img => img.originalFilename === file.name && img.fileSizeBytes === file.size);
+          const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
           const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
           
           if (existsInStore || existsInBatch) {
@@ -95,12 +95,12 @@ const PhotoPanel: React.FC = () => {
     multiple: true,
   });
 
-  const imageList = Object.values(images);
+  const imageList = Object.values(images) as any[];
 
   // Find which page uses a given image (returns page label or null)
   const findImageUsage = (imageId: string): string | null => {
     for (const page of pages) {
-      if (page.imageRegions.some(r => r.imageFileId === imageId)) {
+      if (page.imageRegions.some((r: any) => r.imageFileId === imageId)) {
         if (page.type === 'cover') return 'Portada';
         return page.month ? `Página ${page.month}` : `Página ${page.index}`;
       }

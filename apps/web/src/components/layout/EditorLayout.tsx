@@ -146,7 +146,7 @@ const EditorLayout: React.FC = () => {
 
   // Find the selected region
   const selectedRegion = selectedRegionId
-    ? activePage?.imageRegions.find((r) => r.id === selectedRegionId)
+    ? activePage?.imageRegions.find((r: any) => r.id === selectedRegionId)
     : null;
 
   if (loading) {

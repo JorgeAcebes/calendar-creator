@@ -83,7 +83,7 @@ const CalendarCanvas: React.FC = () => {
       if (!pos) return;
 
       // Find region
-      const droppedRegion = page.imageRegions.find(r => {
+      const droppedRegion = page.imageRegions.find((r: any) => {
         const x = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
         const y = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
         const w = toCanvasPx(r.mask.widthMm, canvasScale);
@@ -93,7 +93,7 @@ const CalendarCanvas: React.FC = () => {
 
       if (droppedRegion) {
         // Check if image is already used
-        const usedIn = project.pages.some(p => p.imageRegions.some(r => r.imageFileId === data.id));
+        const usedIn = project.pages.some((p: any) => p.imageRegions.some((r: any) => r.imageFileId === data.id));
         if (usedIn && project.globalSettings.warnOnDuplicatePhotos !== false) {
           alert('Aviso: Esta foto ya está siendo utilizada en otra página del calendario.');
         }
@@ -151,7 +151,7 @@ const CalendarCanvas: React.FC = () => {
         {/* Layer 2: Content (images + calendar grid) */}
         <Layer x={dims.originX} y={dims.originY}>
           {/* Image regions */}
-          {page.imageRegions.map((region) => (
+          {page.imageRegions.map((region: any) => (
             <MaskedImage
               key={region.id}
               region={region}
