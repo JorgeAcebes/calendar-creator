@@ -23,6 +23,10 @@
       "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
     {
+      "identifier": "fs:allow-write-file",
+      "allow": [{ "path": "**" }]
+    },
+    {
       "identifier": "fs:allow-mkdir",
       "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },

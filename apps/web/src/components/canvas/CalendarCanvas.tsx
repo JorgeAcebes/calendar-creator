@@ -63,7 +63,6 @@ const CalendarCanvas: React.FC = () => {
   if (!page) return null;
 
   const handleWheel = (e: any) => {
-    if (!e.evt.ctrlKey && !e.evt.metaKey) return;
     e.evt.preventDefault();
     const scaleBy = Math.exp(e.evt.deltaY * -0.01);
     const oldScale = canvasScale;
@@ -81,7 +80,7 @@ const CalendarCanvas: React.FC = () => {
       const data = JSON.parse(payload);
       if (data.type !== 'gallery-image') return;
       
-      stageRef.current.setPointersPositions(e);
+      stageRef.current.setPointersPositions(e.nativeEvent);
       const pos = stageRef.current.getPointerPosition();
       if (!pos) return;
 
