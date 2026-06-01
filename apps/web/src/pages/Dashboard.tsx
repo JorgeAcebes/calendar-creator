@@ -313,12 +313,12 @@ const Dashboard: React.FC = () => {
       if (isTauri) {
         const { readDir, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
         try {
-          const entries = await readDir('', { baseDir: BaseDirectory.AppData });
+          const entries = await readDir('projects', { baseDir: BaseDirectory.AppData });
           const loadedProjects: ProjectListItem[] = [];
           for (const entry of entries) {
             if (entry.name && entry.name.endsWith('.json')) {
               try {
-                const data = await readTextFile(entry.name, { baseDir: BaseDirectory.AppData });
+                const data = await readTextFile(`projects/${entry.name}`, { baseDir: BaseDirectory.AppData });
                 const proj = JSON.parse(data);
                 loadedProjects.push({
                   id: proj.id,
@@ -354,8 +354,8 @@ const Dashboard: React.FC = () => {
     try {
       if (isTauri) {
         const { writeTextFile, BaseDirectory, mkdir } = await import('@tauri-apps/plugin-fs');
-        try { await mkdir('', { baseDir: BaseDirectory.AppData, recursive: true }); } catch (e) {}
-        await writeTextFile(`${newProject.id}.json`, JSON.stringify(newProject), { baseDir: BaseDirectory.AppData });
+        try { await mkdir('projects', { baseDir: BaseDirectory.AppData, recursive: true }); } catch (e) {}
+        await writeTextFile(`projects/${newProject.id}.json`, JSON.stringify(newProject), { baseDir: BaseDirectory.AppData });
         navigate(`/editor/${newProject.id}`);
       } else {
         const res = await fetch('/api/projects', {
@@ -369,9 +369,9 @@ const Dashboard: React.FC = () => {
           throw new Error('Server error');
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Error al guardar el nuevo proyecto');
+      alert('Error al guardar el nuevo proyecto: ' + (e.message || e));
     }
   };
 
@@ -383,7 +383,7 @@ const Dashboard: React.FC = () => {
     try {
       if (isTauri) {
         const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        await remove(`${id}.json`, { baseDir: BaseDirectory.AppData });
+        await remove(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
         loadProjects();
       } else {
         await fetch(`/api/projects/${id}`, { method: 'DELETE' });
@@ -397,11 +397,11 @@ const Dashboard: React.FC = () => {
     try {
       if (isTauri) {
         const { readTextFile, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        const data = await readTextFile(`${id}.json`, { baseDir: BaseDirectory.AppData });
+        const data = await readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
         const parsedData: CalendarProject = JSON.parse(data);
         parsedData.name = `${parsedData.name} (Copia)`;
         parsedData.id = crypto.randomUUID();
-        await writeTextFile(`${parsedData.id}.json`, JSON.stringify(parsedData), { baseDir: BaseDirectory.AppData });
+        await writeTextFile(`projects/${parsedData.id}.json`, JSON.stringify(parsedData), { baseDir: BaseDirectory.AppData });
         loadProjects();
       } else {
         const res = await fetch(`/api/projects/${id}`);

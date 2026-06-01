@@ -34,7 +34,7 @@ const EditorLayout: React.FC = () => {
     if (id && id !== 'new') {
       if ((window as any).__TAURI_INTERNALS__) {
         import('@tauri-apps/plugin-fs').then(({ readTextFile, BaseDirectory }) => {
-          readTextFile(`${id}.json`, { baseDir: BaseDirectory.AppData })
+          readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData })
             .then(data => {
               const parsedData: CalendarProject = JSON.parse(data);
               loadProject(parsedData);
@@ -73,7 +73,7 @@ const EditorLayout: React.FC = () => {
     
     if ((window as any).__TAURI_INTERNALS__) {
       import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-        writeTextFile(`${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
+        writeTextFile(`projects/${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
       });
       return;
     }
@@ -98,7 +98,7 @@ const EditorLayout: React.FC = () => {
     const timeoutId = setTimeout(() => {
       if ((window as any).__TAURI_INTERNALS__) {
         import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-          writeTextFile(`${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
+          writeTextFile(`projects/${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
         });
         return;
       }
