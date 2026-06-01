@@ -32,7 +32,7 @@ const EditorLayout: React.FC = () => {
 
   useEffect(() => {
     if (id && id !== 'new') {
-      if ((window as any).__TAURI__) {
+      if ((window as any).__TAURI_INTERNALS__) {
         import('@tauri-apps/plugin-fs').then(({ readTextFile, BaseDirectory }) => {
           readTextFile(`${id}.json`, { baseDir: BaseDirectory.AppData })
             .then(data => {
@@ -71,7 +71,7 @@ const EditorLayout: React.FC = () => {
   const saveProject = (proj: CalendarProject) => {
     if (!proj.id || loading || id === 'new') return;
     
-    if ((window as any).__TAURI__) {
+    if ((window as any).__TAURI_INTERNALS__) {
       import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
         writeTextFile(`${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
       });
@@ -96,7 +96,7 @@ const EditorLayout: React.FC = () => {
   useEffect(() => {
     if (loading || !project.id || id === 'new') return;
     const timeoutId = setTimeout(() => {
-      if ((window as any).__TAURI__) {
+      if ((window as any).__TAURI_INTERNALS__) {
         import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
           writeTextFile(`${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
         });
