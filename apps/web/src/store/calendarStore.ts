@@ -340,9 +340,30 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       // --- Global Settings ---
       setPaperDimensions: (dims) => {
         set((state) => {
+          const oldPages = state.project.pages;
           state.project.globalSettings.paperDimensions = dims;
-          // Regenerate pages with new layout dimensions
-          state.project.pages = createDefaultPages(state.project.year, dims);
+          const newPages = createDefaultPages(state.project.year, dims);
+          
+          for (let i = 0; i < newPages.length; i++) {
+             const oldPage = oldPages.find(p => p.index === newPages[i].index);
+             if (!oldPage) continue;
+             
+             // Preserve images
+             for (let j = 0; j < Math.min(newPages[i].imageRegions.length, oldPage.imageRegions.length); j++) {
+                newPages[i].imageRegions[j].imageFileId = oldPage.imageRegions[j].imageFileId;
+                newPages[i].imageRegions[j].transform = oldPage.imageRegions[j].transform;
+             }
+             
+             // Preserve text
+             if (newPages[i].type === 'cover' && oldPage.type === 'cover') {
+                newPages[i].coverText = { ...newPages[i].coverText, ...oldPage.coverText };
+             }
+             if (oldPage.textRegions) {
+                newPages[i].textRegions = oldPage.textRegions;
+             }
+          }
+          
+          state.project.pages = newPages;
           state.project.updatedAt = new Date().toISOString();
         });
       },

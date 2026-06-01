@@ -65,10 +65,10 @@ const CalendarCanvas: React.FC = () => {
   const handleWheel = (e: any) => {
     if (!e.evt.ctrlKey && !e.evt.metaKey) return;
     e.evt.preventDefault();
-    const scaleBy = 1.05;
+    const scaleBy = Math.exp(e.evt.deltaY * -0.01);
     const oldScale = canvasScale;
-    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
-    setCanvasZoom(Math.max(0.2, Math.min(newScale, 3)));
+    const newScale = oldScale * scaleBy;
+    setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -76,7 +76,9 @@ const CalendarCanvas: React.FC = () => {
     if (!stageRef.current) return;
     
     try {
-      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      const payload = e.dataTransfer.getData('text/plain');
+      if (!payload) return;
+      const data = JSON.parse(payload);
       if (data.type !== 'gallery-image') return;
       
       stageRef.current.setPointersPositions(e);
@@ -110,8 +112,8 @@ const CalendarCanvas: React.FC = () => {
   return (
     <div 
       className="canvas-wrapper"
-      onDragOver={(e) => e.preventDefault()}
-      onDragEnter={(e) => e.preventDefault()}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+      onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDrop={handleDrop}
     >
       <Stage

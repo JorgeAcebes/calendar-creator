@@ -21,6 +21,7 @@ interface PdfRendererProps {
 const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError, onProgress }) => {
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const stageRef = useRef<Konva.Stage>(null);
+  const isGeneratingRef = useRef(false);
   
   const canvasScale = 1;
 
@@ -69,7 +70,10 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
         
         await new Promise(r => setTimeout(r, 1000));
         
-        if (!mounted) return;
+        if (!mounted || isGeneratingRef.current) return;
+        if (currentPageIndex === project.pages.length - 1) {
+          isGeneratingRef.current = true;
+        }
 
         // Preview: Low DPI (72) and lower quality
         const previewDataUrl = stageRef.current.toDataURL({

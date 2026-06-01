@@ -188,7 +188,7 @@ const PhotoPanel: React.FC = () => {
   };
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, imageId: string) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'gallery-image', id: imageId }));
+    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'gallery-image', id: imageId }));
     e.dataTransfer.effectAllowed = 'copy';
   };
 
