@@ -80,9 +80,14 @@ const Donate: React.FC = () => {
             <button 
               className="btn" 
               style={{ width: '100%', background: '#FF5E5B', borderColor: '#FF5E5B', color: '#fff', opacity: DONATION_CONFIG.kofiEnabled ? 1 : 0.5 }} 
-              onClick={() => {
+              onClick={async () => {
                 if (!DONATION_CONFIG.kofiEnabled) return alert('Opción temporalmente deshabilitada.');
-                window.open(DONATION_CONFIG.kofiLink, '_blank');
+                if ((window as any).__TAURI_INTERNALS__) {
+                  const { openUrl } = await import('@tauri-apps/plugin-opener');
+                  openUrl(DONATION_CONFIG.kofiLink);
+                } else {
+                  window.open(DONATION_CONFIG.kofiLink, '_blank');
+                }
               }}
             >
               Abrir Ko-fi

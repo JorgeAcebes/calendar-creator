@@ -2,7 +2,7 @@
 // PhotoPanel — Image upload & gallery sidebar (flat, no folders)
 // =============================================================================
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, X, AlertTriangle, CheckCircle2, Heart } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -23,42 +23,44 @@ const PhotoPanel: React.FC = () => {
   const activePage = pages[activePageIndex];
   const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      const currentImages = Object.values(useCalendarStore.getState().project.images);
-      const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
+  const processFiles = useCallback(async (filesData: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
+    const currentImages = Object.values(useCalendarStore.getState().project.images);
+    const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
 
-      const duplicates: File[] = [];
-      const newFiles: File[] = [];
+    const duplicates: typeof filesData = [];
+    const newFiles: typeof filesData = [];
 
-      for (const file of acceptedFiles) {
-        if (warnOnDuplicate) {
-          const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
-          const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
-          
-          if (existsInStore || existsInBatch) {
-            if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
-               duplicates.push(file);
-            }
-            continue;
+    for (const file of filesData) {
+      if (warnOnDuplicate) {
+        const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
+        const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
+        
+        if (existsInStore || existsInBatch) {
+          if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
+             duplicates.push(file);
           }
-        }
-        newFiles.push(file);
-      }
-
-      const filesToUpload = [...newFiles];
-
-      if (duplicates.length > 0) {
-        const msg = duplicates.length === 1 
-          ? `La foto "${duplicates[0].name}" ya ha sido subida. ¿Deseas volver a subirla?`
-          : `${duplicates.length} fotos ya han sido subidas previamente. ¿Deseas volver a subirlas?`;
-          
-        if (window.confirm(msg)) {
-          filesToUpload.push(...duplicates);
+          continue;
         }
       }
+      newFiles.push(file);
+    }
 
-      for (const file of filesToUpload) {
+    const filesToUpload = [...newFiles];
+
+    if (duplicates.length > 0) {
+      const msg = duplicates.length === 1 
+        ? `La foto "${duplicates[0].name}" ya ha sido subida. ¿Deseas volver a subirla?`
+        : `${duplicates.length} fotos ya han sido subidas previamente. ¿Deseas volver a subirlas?`;
+        
+      if (window.confirm(msg)) {
+        filesToUpload.push(...duplicates);
+      }
+    }
+
+    for (const file of filesToUpload) {
+      try {
+        const buffer = await file.arrayBuffer();
+        const blob = new Blob([buffer], { type: file.type });
         const reader = new FileReader();
         reader.onload = () => {
           const img = new Image();
@@ -79,11 +81,67 @@ const PhotoPanel: React.FC = () => {
           };
           img.src = reader.result as string;
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(blob);
+      } catch(err) {
+        console.error("Error processing file", err);
       }
+    }
+  }, [addImage]);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      processFiles(acceptedFiles.map(f => ({
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        arrayBuffer: () => f.arrayBuffer()
+      })));
     },
-    [addImage],
+    [processFiles],
   );
+
+  useEffect(() => {
+    if ((window as any).__TAURI_INTERNALS__) {
+      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
+        const unlistenPromise = getCurrentWebviewWindow().onDragDropEvent(async (event) => {
+          if (event.payload.type === 'drop') {
+            const paths = event.payload.paths;
+            const { readFile } = await import('@tauri-apps/plugin-fs');
+            
+            const filesData = [];
+            for (const path of paths) {
+              const name = path.split(/[\/\\]/).pop() || 'image';
+              const ext = name.split('.').pop()?.toLowerCase();
+              if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) continue;
+              
+              let type = 'image/jpeg';
+              if (ext === 'png') type = 'image/png';
+              if (ext === 'webp') type = 'image/webp';
+              
+              try {
+                const bytes = await readFile(path);
+                filesData.push({
+                  name,
+                  size: bytes.length,
+                  type,
+                  arrayBuffer: async () => bytes.buffer as ArrayBuffer
+                });
+              } catch(err) {
+                console.error("Failed to read dropped file", err);
+              }
+            }
+            if (filesData.length > 0) {
+              processFiles(filesData);
+            }
+          }
+        });
+        
+        return () => {
+          unlistenPromise.then(unlisten => unlisten());
+        };
+      });
+    }
+  }, [processFiles]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,

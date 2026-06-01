@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@calendar-creator/shared-types": "workspace:*",
+    "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-fs": "^2.5.1",
+    "@tauri-apps/plugin-opener": "^2.5.4",
     "date-fns": "^4.1.0",
     "immer": "^10.1.0",
     "jspdf": "^4.2.1",

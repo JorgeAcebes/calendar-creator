@@ -107,12 +107,31 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
           zip.file(`${project.name || 'Calendario'}_Impresion_300DPI.pdf`, pdfPrint.output('blob'));
           
           const content = await zip.generateAsync({ type: 'blob' });
-          const url = URL.createObjectURL(content);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${project.name || 'Calendario'}_Export.zip`;
-          a.click();
-          URL.revokeObjectURL(url);
+
+          if ((window as any).__TAURI_INTERNALS__) {
+            const { save } = await import('@tauri-apps/plugin-dialog');
+            const { writeFile } = await import('@tauri-apps/plugin-fs');
+            
+            const filePath = await save({
+              filters: [{
+                name: 'Archivo ZIP',
+                extensions: ['zip']
+              }],
+              defaultPath: `${project.name || 'Calendario'}_Export.zip`
+            });
+
+            if (filePath) {
+               const arrayBuffer = await content.arrayBuffer();
+               await writeFile(filePath, new Uint8Array(arrayBuffer));
+            }
+          } else {
+            const url = URL.createObjectURL(content);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${project.name || 'Calendario'}_Export.zip`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }
           
           onComplete();
         }

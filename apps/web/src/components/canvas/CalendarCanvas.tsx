@@ -63,6 +63,7 @@ const CalendarCanvas: React.FC = () => {
   if (!page) return null;
 
   const handleWheel = (e: any) => {
+    if (!e.evt.ctrlKey && !e.evt.metaKey) return;
     e.evt.preventDefault();
     const scaleBy = 1.05;
     const oldScale = canvasScale;
@@ -110,6 +111,7 @@ const CalendarCanvas: React.FC = () => {
     <div 
       className="canvas-wrapper"
       onDragOver={(e) => e.preventDefault()}
+      onDragEnter={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
       <Stage
