@@ -9,11 +9,15 @@
     "core:default",
     "fs:default",
     {
-      "identifier": "fs:allow-read",
+      "identifier": "fs:allow-read-text-file",
       "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
     {
-      "identifier": "fs:allow-write",
+      "identifier": "fs:allow-read-dir",
+      "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "$APPDATA/**" }, { "path": "$APPDATA" }]
     },
     {
