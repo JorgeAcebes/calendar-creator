@@ -355,11 +355,8 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
              }
              
              // Preserve text
-             if (newPages[i].type === 'cover' && oldPage.type === 'cover') {
-                newPages[i].coverText = { ...newPages[i].coverText, ...oldPage.coverText };
-             }
-             if (oldPage.textRegions) {
-                newPages[i].textRegions = oldPage.textRegions;
+             if (newPages[i].type === 'cover' && oldPage.type === 'cover' && newPages[i].coverText && oldPage.coverText) {
+                newPages[i].coverText = { ...newPages[i].coverText!, ...oldPage.coverText };
              }
           }
           
