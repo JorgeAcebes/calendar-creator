@@ -39,7 +39,7 @@ jobs:
         run: pnpm --filter @calendar-creator/api exec prisma generate
 
       - name: build workspace
-        run: pnpm run build
+        run: pnpm run build --force
 
       - name: build tauri app
         uses: tauri-apps/tauri-action@v0
