@@ -1,0 +1,28 @@
+FROM node:22-bookworm
+
+# Install Ghostscript for CMYK PDF post-processing
+RUN apt-get update && apt-get install -y \
+    ghostscript \
+    && rm -rf /var/lib/apt/lists/*
+
+# Enable corepack for pnpm
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy package files first for Docker layer caching
+COPY apps/api/package.json ./
+RUN pnpm install
+
+# Copy source code
+COPY apps/api/ .
+
+# Copy shared packages
+COPY packages/ /packages/
+
+# Create directories
+RUN mkdir -p /app/uploads /app/data /app/icc-profiles
+
+EXPOSE 3001
+
+CMD ["pnpm", "run", "start:dev"]

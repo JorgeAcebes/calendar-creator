@@ -1,0 +1,1 @@
+{"version":3,"file":"upload.controller.d.ts","sourceRoot":"","sources":["upload.controller.ts"],"names":[],"mappings":"AAEA,OAAO,EAAE,aAAa,EAAE,MAAM,kBAAkB,CAAC;AAEjD,qBACa,gBAAgB;IACf,OAAO,CAAC,QAAQ,CAAC,aAAa;gBAAb,aAAa,EAAE,aAAa;IAInD,UAAU,CAAiB,IAAI,EAAE,OAAO,CAAC,MAAM,CAAC,IAAI;CAG3D"}

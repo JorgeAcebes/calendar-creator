@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/tsconfig/react.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@calendar-creator/shared-types": ["../../packages/shared-types/src"]
+    }
+  },
+  "include": ["src", "vite-env.d.ts"],
+  "references": [{ "path": "../../packages/shared-types" }]
+}

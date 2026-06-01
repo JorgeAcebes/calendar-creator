@@ -1,0 +1,287 @@
+// =============================================================================
+// PhotoPanel — Image upload & gallery sidebar (flat, no folders)
+// =============================================================================
+
+import React, { useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
+import { Upload, X, AlertTriangle, CheckCircle2, Heart } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
+import { useNavigate } from 'react-router-dom';
+import type { UploadedImage } from '@calendar-creator/shared-types';
+import { useCalendarStore } from '@/store/calendarStore';
+
+const PhotoPanel: React.FC = () => {
+  const navigate = useNavigate();
+  const project = useCalendarStore((s) => s.project);
+  const images = project.images;
+  const pages = project.pages;
+  const addImage = useCalendarStore((s) => s.addImage);
+  const removeImage = useCalendarStore((s) => s.removeImage);
+  const assignImage = useCalendarStore((s) => s.assignImageToRegion);
+  const setWarnOnDuplicatePhotos = useCalendarStore((s) => s.setWarnOnDuplicatePhotos);
+  const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
+  const activePage = pages[activePageIndex];
+  const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const currentImages = Object.values(useCalendarStore.getState().project.images);
+      const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
+
+      const duplicates: File[] = [];
+      const newFiles: File[] = [];
+
+      for (const file of acceptedFiles) {
+        if (warnOnDuplicate) {
+          const existsInStore = currentImages.some(img => img.originalFilename === file.name && img.fileSizeBytes === file.size);
+          const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
+          
+          if (existsInStore || existsInBatch) {
+            if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
+               duplicates.push(file);
+            }
+            continue;
+          }
+        }
+        newFiles.push(file);
+      }
+
+      const filesToUpload = [...newFiles];
+
+      if (duplicates.length > 0) {
+        const msg = duplicates.length === 1 
+          ? `La foto "${duplicates[0].name}" ya ha sido subida. ¿Deseas volver a subirla?`
+          : `${duplicates.length} fotos ya han sido subidas previamente. ¿Deseas volver a subirlas?`;
+          
+        if (window.confirm(msg)) {
+          filesToUpload.push(...duplicates);
+        }
+      }
+
+      for (const file of filesToUpload) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const imageData: UploadedImage = {
+              id: uuidv4(),
+              originalFilename: file.name,
+              storagePath: '',
+              thumbnailPath: '',
+              previewDataUrl: reader.result as string,
+              widthPx: img.naturalWidth,
+              heightPx: img.naturalHeight,
+              fileSizeBytes: file.size,
+              mimeType: file.type as UploadedImage['mimeType'],
+              folder: 'Sin clasificar',
+            };
+            addImage(imageData);
+          };
+          img.src = reader.result as string;
+        };
+        reader.readAsDataURL(file);
+      }
+    },
+    [addImage],
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/webp': ['.webp'],
+    },
+    multiple: true,
+  });
+
+  const imageList = Object.values(images);
+
+  // Find which page uses a given image (returns page label or null)
+  const findImageUsage = (imageId: string): string | null => {
+    for (const page of pages) {
+      if (page.imageRegions.some(r => r.imageFileId === imageId)) {
+        if (page.type === 'cover') return 'Portada';
+        return page.month ? `Página ${page.month}` : `Página ${page.index}`;
+      }
+    }
+    return null;
+  };
+
+  const [duplicateWarning, setDuplicateWarning] = React.useState<string | null>(null);
+  const [pendingImageId, setPendingImageId] = React.useState<string | null>(null);
+
+  const handleThumbnailClick = (imageId: string) => {
+    if (!selectedRegionId || !activePage) return;
+
+    const usedIn = findImageUsage(imageId);
+    if (usedIn && pendingImageId !== imageId && project.globalSettings.warnOnDuplicatePhotos) {
+      // First click on a used image: warn
+      setDuplicateWarning(`⚠ Esta foto ya está en uso (${usedIn}). Haz clic de nuevo para confirmar.`);
+      setPendingImageId(imageId);
+      setTimeout(() => { setDuplicateWarning(null); setPendingImageId(null); }, 4000);
+      return;
+    }
+
+    // Either not used, or confirmed (second click)
+    assignImage(activePageIndex, selectedRegionId, imageId);
+    setDuplicateWarning(null);
+    setPendingImageId(null);
+  };
+
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, imageId: string) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ type: 'gallery-image', id: imageId }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div className="panel-section" style={{ paddingBottom: 0, borderBottom: 'none' }}>
+        <button 
+          className="btn" 
+          style={{ width: '100%', background: 'linear-gradient(135deg, var(--color-secondary), #ff6b81)', borderColor: 'transparent', color: '#fff', fontWeight: 600 }}
+          onClick={() => navigate('/donate')}
+        >
+          <Heart size={14} fill="currentColor" />
+          Donar
+        </button>
+      </div>
+
+      <div className="panel-section">
+        <div className="panel-section__header">
+          <span className="panel-section__title">Fotos</span>
+          <span className="badge">{imageList.length}</span>
+        </div>
+
+        {/* Upload dropzone */}
+        <div
+          {...getRootProps()}
+          className={`upload-dropzone ${isDragActive ? 'upload-dropzone--active' : ''}`}
+        >
+          <input {...getInputProps()} />
+          <Upload className="upload-dropzone__icon" size={28} />
+          <div className="upload-dropzone__text">
+            {isDragActive ? (
+              <strong>Suelta las fotos aquí</strong>
+            ) : (
+              <>
+                <strong>Arrastra fotos</strong> o haz clic para seleccionar
+                <br />
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-tertiary)' }}>
+                  JPG, PNG, WebP • Se recomienda 300 DPI
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Settings section */}
+      <div className="panel-section">
+        <label className="checkbox-label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
+          <input 
+            type="checkbox" 
+            className="checkbox"
+            checked={project.globalSettings.warnOnDuplicatePhotos !== false}
+            onChange={(e) => setWarnOnDuplicatePhotos(e.target.checked)}
+          />
+          Avisar si repito una foto
+        </label>
+      </div>
+
+      {/* Image gallery */}
+      {imageList.length > 0 && (
+        <div className="panel-section" style={{ flex: 1, overflowY: 'auto' }}>
+          {selectedRegionId && (
+            <p style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-accent)',
+              marginBottom: 'var(--space-3)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <AlertTriangle size={12} />
+              Haz clic o arrastra a la zona seleccionada
+            </p>
+          )}
+          {/* Duplicate image warning */}
+          {duplicateWarning && (
+            <p style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-warning)',
+              background: 'var(--color-warning-soft)',
+              padding: 'var(--space-2) var(--space-3)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 'var(--space-3)',
+            }}>
+              {duplicateWarning}
+            </p>
+          )}
+          <div className="thumbnail-grid stagger-children">
+            {imageList.map((img) => {
+              const isLowRes = img.widthPx < 1200 && img.heightPx < 1200;
+              const used = !!findImageUsage(img.id);
+
+              return (
+                <div
+                  key={img.id}
+                  className={`thumbnail animate-scale-in ${isLowRes ? 'thumbnail--low-dpi' : ''}`}
+                  onClick={() => handleThumbnailClick(img.id)}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, img.id)}
+                  title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`}
+                >
+                  <img
+                    src={img.previewDataUrl ?? img.thumbnailPath}
+                    alt={img.originalFilename}
+                    draggable={false}
+                  />
+                  {used && (
+                    <div style={{ position: 'absolute', top: 4, left: 4, background: '#12121a', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                      <CheckCircle2 size={14} color="#2ed573" />
+                    </div>
+                  )}
+                  {isLowRes && (
+                    <span className="badge badge--warning" style={{
+                      position: 'absolute',
+                      bottom: 3,
+                      left: 3,
+                      fontSize: '8px',
+                      padding: '1px 4px',
+                    }}>
+                      BAJA RES
+                    </span>
+                  )}
+                  <button
+                    className="btn btn--ghost btn--icon"
+                    style={{
+                      position: 'absolute',
+                      top: 2,
+                      right: 2,
+                      width: 20,
+                      height: 20,
+                      minWidth: 'unset',
+                      background: 'rgba(0,0,0,0.5)',
+                      border: 'none',
+                      borderRadius: '50%',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeImage(img.id);
+                    }}
+                    title="Eliminar foto"
+                  >
+                    <X size={10} color="#fff" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default PhotoPanel;
