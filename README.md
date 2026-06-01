@@ -1,87 +1,81 @@
 # Calendar Creator
 
-**Professional calendar creator with print-ready PDF export.** Create beautiful personalized calendars with photos, custom typography, and day annotations — all exportable as high-quality PDFs ready for professional printing.
+Calendar Creator is a professional desktop and web application designed for creating premium print-ready photographic calendars. It features an intuitive, glassmorphism-styled dark editor that allows users to seamlessly place photos, customize typography, and add day-specific annotations. Built for precision and high-quality outputs, the application exports 300 DPI, CMYK-ready PDFs complete with 3mm bleed margins and crop marks, ensuring flawless professional printing.
 
-![License](https://img.shields.io/badge/license-MIT-blue)
-![Node](https://img.shields.io/badge/node-22+-green)
-![TypeScript](https://img.shields.io/badge/typescript-strict-blue)
+## Core Features
 
-## Features
+- **13-Page Project Structure**: Dedicated pages for the front cover and 12 calendar months.
+- **Multiple Supported Formats**: Generate layouts in A4, A3, and US Letter sizes.
+- **Multilingual Support**: Fully localized interface and calendar generation for ES, EN, FR, DE, IT, PT, CA, GL, and EU.
+- **Professional Layout Options**: Choose from full-bleed single photos, 2-photo collages, 3-photo mosaics, and 4-photo grids.
+- **Precision Positioning**: Image placement relies on predefined dropzones with controlled offset parameters instead of free dragging, ensuring pixel-perfect alignment.
+- **Advanced Typography**: Independent control over font family, size, weight, and color for month headers, day names, and date numbers.
+- **Custom Annotations**: Highlight specific dates with custom text labels directly on the calendar grid.
+- **Print-Ready PDF Export**: Outputs are strictly formatted for professional printing with high-resolution images, CMYK color space compatibility, embedded fonts, and precise crop marks.
+- **Cross-Platform**: Operates both as a standalone desktop application using Tauri and as a modern web application.
 
-- **13-page calendar**: 1 cover + 12 months
-- **Multiple paper formats**: A4, A3, Letter
-- **Multi-language support**: ES, EN, FR, DE, IT, PT, CA, GL, EU
-- **Professional layouts**: Single photo, 2-photo collage, 3-photo mosaic, 4-photo grid
-- **Controlled image positioning**: Arrow-key offset controls (no free-drag) for precise alignment
-- **Typography control**: Independent font, size, weight, and color for month header, day names, and day numbers
-- **Day annotations**: Add text and emoji to any day
-- **Print-ready PDF export**: 300 DPI, CMYK color, 3mm bleed, crop marks, embedded fonts
-- **Dark editor UI**: Premium glassmorphism design
-
-## Quick Start
+## Getting Started
 
 ### Prerequisites
 
-- **Node.js** ≥ 22 ([download](https://nodejs.org))
-- **pnpm** ≥ 9 (`npm install -g pnpm`)
-- **Docker** (optional, for backend PDF generation with Ghostscript)
+- Node.js 22 or higher
+- pnpm 9 or higher
+- Docker (optional, recommended for backend PDF generation with Ghostscript)
 
-### Install & Run
+### Installation
+
+Clone the repository and install the workspace dependencies:
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-username/calendar-creator-app.git
-cd calendar-creator-app
-
-# Install dependencies
+git clone https://github.com/JorgeAcebes/calendar-creator.git
+cd calendar-creator
 pnpm install
+```
 
-# Start the frontend development server
+### Running Locally (Web Mode)
+
+To start the frontend web interface:
+
+```bash
 pnpm dev:web
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Open http://localhost:5173 in your browser to access the editor.
 
-### Backend (for PDF export)
+To run the backend API required for PDF processing:
 
 ```bash
-# Start backend + Redis with Docker
+# Start the backend and Redis using Docker
 pnpm docker:up
 
-# Or run without Docker (requires Ghostscript installed)
+# Alternatively, run the API locally (requires Ghostscript installed natively)
 pnpm dev:api
+```
+
+### Running Locally (Desktop App)
+
+To compile and launch the native desktop application using Tauri:
+
+```bash
+# Ensure you are inside the web workspace or run from the root
+pnpm --filter @calendar-creator/web run tauri dev
 ```
 
 ## Architecture
 
-```
-calendar-creator-app/
-├── apps/
-│   ├── web/          # React 19 + Vite + Konva.js (Frontend)
-│   └── api/          # NestJS + PDFKit + Ghostscript (Backend)
-├── packages/
-│   ├── shared-types/ # TypeScript types shared between frontend & backend
-│   └── tsconfig/     # Shared TypeScript configurations
-└── docker/           # Docker files for backend services
-```
+The project is structured as a monorepo utilizing pnpm workspaces and Turborepo for optimal build performance.
 
-### Stack
+- **apps/web**: The frontend interface built with React 19, Vite, and Zustand. It serves as both the web client and the UI layer for the Tauri desktop application.
+- **apps/api**: The backend service built with NestJS. It handles heavy lifting for image processing (Sharp) and PDF generation (PDFKit + Ghostscript).
+- **packages/shared-types**: TypeScript models and interfaces shared seamlessly between the frontend and backend to guarantee type safety.
+- **packages/tsconfig**: Shared base configuration for the TypeScript compiler.
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript, Vite, Konva.js, Zustand |
-| Backend | NestJS, PDFKit, Ghostscript, Sharp |
-| State | Zustand with Immer |
-| Build | pnpm workspaces, Turborepo |
+### Key Technical Decisions
 
-### Key Design Decisions
-
-1. **No Free Movement**: Images snap to predefined dropzones. Repositioning is done via arrow controls and numeric inputs — preventing misalignment and ensuring print accuracy.
-
-2. **Shared `computeImagePlacement()`**: The exact same function calculates image position/scale on both the Canvas preview and the PDF output, guaranteeing pixel-perfect correspondence.
-
-3. **All dimensions in millimeters**: The state model uses mm as the canonical unit. Conversion to px (canvas) or pt (PDF) happens at render time only.
+- **Unified Geometry Calculation**: The logic that computes image positioning and scaling is shared across the Canvas preview and the PDF generation service. This guarantees that what you see in the editor perfectly matches the printed output.
+- **Absolute Physical Units**: The state model relies strictly on millimeters as the canonical unit. Conversions to pixels for the web canvas or points for the PDF document occur only during the final render stage.
+- **Tauri Fallback Storage**: When executed as a desktop application, the frontend bypasses network API requests and directly reads and writes project data to the local file system (AppData), allowing for offline usage without a backend database.
 
 ## License
 
-MIT
+This project is licensed under the MIT License.
