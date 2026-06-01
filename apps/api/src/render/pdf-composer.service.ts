@@ -240,7 +240,7 @@ export class PdfComposerService {
         });
 
         // Annotations
-        const annotation = grid.annotations.find((a) => a.day === dayNum);
+        const annotation = grid.annotations.find((a: any) => a.day === dayNum);
         if (annotation) {
           doc.font(annotation.fontFamily ?? typo.dayNumbers.fontFamily)
             .fontSize(annotation.fontSizePt)
