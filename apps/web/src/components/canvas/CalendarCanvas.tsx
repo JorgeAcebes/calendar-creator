@@ -103,12 +103,32 @@ const CalendarCanvas: React.FC = () => {
     if (!stageRef.current) return;
     
     try {
-      const payload = e.dataTransfer.getData('text/plain');
-      const imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
-      if (imageIds.length === 0 && payload !== 'gallery-image') return;
+      const payloadText = e.dataTransfer.getData('text/plain');
+      const payloadJson = e.dataTransfer.getData('application/json');
       
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      let imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
+      
+      if (imageIds.length === 0) {
+        if (payloadJson) {
+          try { imageIds = JSON.parse(payloadJson); } catch(e) {}
+        } else if (payloadText && payloadText !== 'gallery-image') {
+          imageIds = payloadText.split(',');
+        }
+      }
+      
+      if (imageIds.length === 0) return;
+      
+      // Calculate drop position
+      let pos = { x: 0, y: 0 };
+      stageRef.current.setPointersPositions(e);
+      const stagePos = stageRef.current.getPointerPosition();
+      
+      if (stagePos) {
+        pos = stagePos;
+      } else {
+        const rect = e.currentTarget.getBoundingClientRect();
+        pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      }
 
       // Find region
       const droppedRegionIndex = page.imageRegions.findIndex((r: any) => {
@@ -118,8 +138,6 @@ const CalendarCanvas: React.FC = () => {
         const h = toCanvasPx(r.mask.heightMm, canvasScale);
         return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
       });
-
-      if (imageIds.length === 0) return;
 
       if (droppedRegionIndex >= 0) {
         assignImage(page.index, page.imageRegions[droppedRegionIndex].id, imageIds[0]);
@@ -142,7 +160,7 @@ const CalendarCanvas: React.FC = () => {
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Drop error", err);
     }
   };
 

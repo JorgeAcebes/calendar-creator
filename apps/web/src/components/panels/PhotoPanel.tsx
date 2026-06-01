@@ -208,7 +208,8 @@ const PhotoPanel: React.FC = () => {
       idsToDrag = Array.from(selectedImageIds);
     }
     setDraggedImageIds(idsToDrag);
-    e.dataTransfer.setData('text/plain', 'gallery-image');
+    e.dataTransfer.setData('text/plain', idsToDrag.join(','));
+    e.dataTransfer.setData('application/json', JSON.stringify(idsToDrag));
     e.dataTransfer.effectAllowed = 'copy';
   };
 
