@@ -42,6 +42,8 @@ interface EditorState {
   showSafeGuides: boolean;
   /** Offset step size in mm */
   offsetStepMm: number;
+  /** Currently dragged image IDs from the gallery */
+  draggedImageIds: string[] | null;
 }
 
 export interface CalendarStoreState {
@@ -131,7 +133,9 @@ export interface CalendarStoreActions {
   /** Toggle safe area guides */
   toggleSafeGuides: () => void;
   /** Set offset step size */
-  setOffsetStep: (stepMm: number) => void;
+  setOffsetStepMm: (step: number) => void;
+  /** Set dragged image IDs */
+  setDraggedImageIds: (ids: string[] | null) => void;
 
   // --- Auto Actions ---
   /** Randomly fill empty image regions with uploaded images */
@@ -292,10 +296,11 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       editor: {
         activePageIndex: 0,
         selectedRegionId: null,
-        canvasZoom: 0.4,
+        canvasZoom: 1.0,
         showBleedGuides: true,
-        showSafeGuides: false,
+        showSafeGuides: true,
         offsetStepMm: 1,
+        draggedImageIds: null,
       },
 
       // --- Project Actions ---
@@ -644,9 +649,15 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         });
       },
 
-      setOffsetStep: (stepMm) => {
+      setOffsetStepMm: (step) => {
         set((state) => {
-          state.editor.offsetStepMm = stepMm;
+          state.editor.offsetStepMm = step;
+        });
+      },
+
+      setDraggedImageIds: (ids) => {
+        set((state) => {
+          state.editor.draggedImageIds = ids;
         });
       },
 

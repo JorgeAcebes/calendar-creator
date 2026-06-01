@@ -27,7 +27,7 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
   const setClipToSafe = useCalendarStore((s) => s.setRegionClipToSafe);
   const clearImage = useCalendarStore((s) => s.clearImageFromRegion);
   const stepMm = useCalendarStore((s) => s.editor.offsetStepMm);
-  const setOffsetStep = useCalendarStore((s) => s.setOffsetStep);
+  const setOffsetStep = useCalendarStore((s) => s.setOffsetStepMm);
 
   const move = (dx: number, dy: number) => {
     updateTransform(pageIndex, regionId, {

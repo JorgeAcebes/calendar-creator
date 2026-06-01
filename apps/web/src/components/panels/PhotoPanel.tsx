@@ -4,7 +4,7 @@
 
 import React, { useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Trash2, Upload, AlertTriangle, Heart, CheckCircle2, CheckSquare, X } from 'lucide-react';
+import { Trash2, Upload, AlertTriangle, Heart, CheckCircle2, CheckSquare, X, CheckCheck } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import type { UploadedImage } from '@calendar-creator/shared-types';
@@ -200,13 +200,20 @@ const PhotoPanel: React.FC = () => {
     setPendingImageId(null);
   };
 
+  const setDraggedImageIds = useCalendarStore((s) => s.setDraggedImageIds);
+
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, imageId: string) => {
     let idsToDrag = [imageId];
     if (selectedImageIds.has(imageId)) {
       idsToDrag = Array.from(selectedImageIds);
     }
-    e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'gallery-image', ids: idsToDrag }));
+    setDraggedImageIds(idsToDrag);
+    e.dataTransfer.setData('text/plain', 'gallery-image');
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragEnd = () => {
+    setDraggedImageIds(null);
   };
 
   return (
@@ -228,14 +235,32 @@ const PhotoPanel: React.FC = () => {
             <span className="panel-section__title">Fotos</span>
             <span className="badge">{imageList.length}</span>
           </div>
-          <button 
-            className={`btn btn--icon ${selectionMode ? 'btn--primary' : 'btn--ghost'}`}
-            style={{ width: 28, height: 28, padding: 0 }}
-            onClick={() => { setSelectionMode(!selectionMode); setSelectedImageIds(new Set()); }}
-            title="Selección múltiple"
-          >
-            <CheckSquare size={16} />
-          </button>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {selectionMode && (
+              <button 
+                className="btn btn--ghost btn--icon"
+                style={{ width: 28, height: 28, padding: 0 }}
+                onClick={() => {
+                  if (selectedImageIds.size === imageList.length) {
+                    setSelectedImageIds(new Set());
+                  } else {
+                    setSelectedImageIds(new Set(imageList.map(img => img.id)));
+                  }
+                }}
+                title={selectedImageIds.size === imageList.length ? "Deseleccionar todas" : "Seleccionar todas"}
+              >
+                <CheckCheck size={16} style={{ opacity: selectedImageIds.size === imageList.length ? 1 : 0.5 }} />
+              </button>
+            )}
+            <button 
+              className={`btn btn--icon ${selectionMode ? 'btn--primary' : 'btn--ghost'}`}
+              style={{ width: 28, height: 28, padding: 0 }}
+              onClick={() => { setSelectionMode(!selectionMode); setSelectedImageIds(new Set()); }}
+              title="Selección múltiple"
+            >
+              <CheckSquare size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Upload dropzone */}
@@ -333,6 +358,7 @@ const PhotoPanel: React.FC = () => {
                   onClick={(e) => handleThumbnailClick(e, img.id)}
                   draggable
                   onDragStart={(e) => handleDragStart(e, img.id)}
+                  onDragEnd={handleDragEnd}
                   title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`}
                   style={isSelected ? { outline: '3px solid var(--color-primary)' } : {}}
                 >

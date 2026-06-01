@@ -65,8 +65,9 @@ const CalendarCanvas: React.FC = () => {
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
   const handleWheel = (e: any) => {
+    if (!e.evt.ctrlKey) return;
     e.evt.preventDefault();
-    const scaleBy = Math.exp(e.evt.deltaY * -0.01);
+    const scaleBy = Math.exp(e.evt.deltaY * -0.002);
     const oldScale = canvasScale;
     const newScale = oldScale * scaleBy;
     setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
@@ -103,9 +104,8 @@ const CalendarCanvas: React.FC = () => {
     
     try {
       const payload = e.dataTransfer.getData('text/plain');
-      if (!payload) return;
-      const data = JSON.parse(payload);
-      if (data.type !== 'gallery-image') return;
+      const imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
+      if (imageIds.length === 0 && payload !== 'gallery-image') return;
       
       const rect = e.currentTarget.getBoundingClientRect();
       const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -119,7 +119,6 @@ const CalendarCanvas: React.FC = () => {
         return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
       });
 
-      const imageIds = data.ids || (data.id ? [data.id] : []);
       if (imageIds.length === 0) return;
 
       if (droppedRegionIndex >= 0) {
