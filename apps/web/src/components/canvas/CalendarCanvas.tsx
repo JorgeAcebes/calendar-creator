@@ -19,6 +19,7 @@ function toCanvasPx(mm: number, scale: number): number {
 
 const CalendarCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const project = useCalendarStore((s) => s.project);
   const editor = useCalendarStore((s) => s.editor);
   const selectRegion = useCalendarStore((s) => s.selectRegion);
@@ -64,14 +65,21 @@ const CalendarCanvas: React.FC = () => {
 
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
-  const handleWheel = (e: any) => {
-    if (!e.evt.ctrlKey) return;
-    e.evt.preventDefault();
-    const scaleBy = Math.exp(e.evt.deltaY * -0.002);
-    const oldScale = canvasScale;
-    const newScale = oldScale * scaleBy;
-    setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
-  };
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const scaleBy = Math.exp(e.deltaY * -0.002);
+        const oldScale = useCalendarStore.getState().editor.canvasZoom;
+        const newScale = oldScale * scaleBy;
+        setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [setCanvasZoom]);
 
   const handleTouchMove = (e: any) => {
     e.evt.preventDefault();
@@ -120,8 +128,10 @@ const CalendarCanvas: React.FC = () => {
       
       // Calculate drop position
       let pos = { x: 0, y: 0 };
-      stageRef.current.setPointersPositions(e);
-      const stagePos = stageRef.current.getPointerPosition();
+      if (stageRef.current) {
+        stageRef.current.setPointersPositions(e.nativeEvent);
+      }
+      const stagePos = stageRef.current?.getPointerPosition();
       
       if (stagePos) {
         pos = stagePos;
@@ -166,6 +176,7 @@ const CalendarCanvas: React.FC = () => {
 
   return (
     <div 
+      ref={wrapperRef}
       className="canvas-wrapper"
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
@@ -175,7 +186,6 @@ const CalendarCanvas: React.FC = () => {
         ref={stageRef}
         width={dims.totalW}
         height={dims.totalH}
-        onWheel={handleWheel}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
