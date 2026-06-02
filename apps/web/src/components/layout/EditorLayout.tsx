@@ -167,7 +167,7 @@ const EditorLayout: React.FC = () => {
 
       <div 
         className="editor-layout__canvas" 
-        style={{ position: 'relative', overflow: 'hidden' }}
+        style={{ position: 'relative', overflow: 'auto', display: 'flex' }}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
         onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       >

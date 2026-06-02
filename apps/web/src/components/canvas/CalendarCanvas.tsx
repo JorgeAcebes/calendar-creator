@@ -28,22 +28,10 @@ const CalendarCanvas: React.FC = () => {
   const { paperDimensions, bleed } = globalSettings;
   const page = project.pages[editor.activePageIndex];
   const canvasScale = editor.canvasZoom;
-  const canvasPan = editor.canvasPan;
 
   const [snapGuides, setSnapGuides] = useState<{ x?: number, y?: number }>({});
-  const [wrapperSize, setWrapperSize] = useState({ width: 800, height: 600 });
 
-  useEffect(() => {
-    if (!wrapperRef.current) return;
-    const observer = new ResizeObserver((entries) => {
-      setWrapperSize({
-        width: entries[0].contentRect.width,
-        height: entries[0].contentRect.height
-      });
-    });
-    observer.observe(wrapperRef.current);
-    return () => observer.disconnect();
-  }, []);
+
 
   // Calculate unscaled logical dimensions
   const dims = useMemo(() => {
@@ -78,36 +66,46 @@ const CalendarCanvas: React.FC = () => {
   if (!page) return null;
 
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
-  const setCanvasPan = useCalendarStore((s) => s.setCanvasPan);
-  const applyZoom = useCalendarStore((s) => s.applyZoom);
-
-  // Center canvas initially if pan is 0,0
-  useEffect(() => {
-    if (editor.canvasPan.x === 0 && editor.canvasPan.y === 0 && wrapperSize.width > 800) {
-      setCanvasPan({
-        x: (wrapperSize.width - dims.totalW * editor.canvasZoom) / 2,
-        y: (wrapperSize.height - dims.totalH * editor.canvasZoom) / 2,
-      });
-    }
-  }, [wrapperSize, dims.totalW, dims.totalH]);
 
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
+    const scrollContainer = el.parentElement;
+    if (!scrollContainer) return;
+
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
+      if (e.ctrlKey) {
         e.preventDefault();
-        const zoomDelta = -e.deltaY * 0.01;
-        applyZoom(zoomDelta, e.clientX, e.clientY, el.getBoundingClientRect());
-      } else {
-        e.preventDefault();
-        const currentPan = useCalendarStore.getState().editor.canvasPan;
-        setCanvasPan({ x: currentPan.x - e.deltaX, y: currentPan.y - e.deltaY });
+        const oldScale = useCalendarStore.getState().editor.canvasZoom;
+        const scaleBy = Math.exp(e.deltaY * -0.002);
+        const newScale = Math.max(0.2, Math.min(oldScale * scaleBy, 4));
+        if (oldScale === newScale) return;
+
+        const rect = scrollContainer.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Only adjust scroll if we are actually overflowing
+        const isOverflowingX = scrollContainer.scrollWidth > scrollContainer.clientWidth;
+        const isOverflowingY = scrollContainer.scrollHeight > scrollContainer.clientHeight;
+
+        const docX = mouseX + scrollContainer.scrollLeft;
+        const docY = mouseY + scrollContainer.scrollTop;
+
+        const newDocX = docX * (newScale / oldScale);
+        const newDocY = docY * (newScale / oldScale);
+
+        setCanvasZoom(newScale);
+
+        setTimeout(() => {
+          if (isOverflowingX) scrollContainer.scrollLeft = newDocX - mouseX;
+          if (isOverflowingY) scrollContainer.scrollTop = newDocY - mouseY;
+        }, 0);
       }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [applyZoom, setCanvasPan]);
+  }, [setCanvasZoom]);
 
   const handleTouchMove = (e: any) => {
     e.evt.preventDefault();
@@ -165,8 +163,8 @@ const CalendarCanvas: React.FC = () => {
         const clientY = e.clientY - rect.top;
         const state = useCalendarStore.getState().editor;
         pos = {
-          x: (clientX - state.canvasPan.x) / state.canvasZoom,
-          y: (clientY - state.canvasPan.y) / state.canvasZoom
+          x: (clientX) / state.canvasZoom,
+          y: (clientY) / state.canvasZoom
         };
       }
 
@@ -208,19 +206,21 @@ const CalendarCanvas: React.FC = () => {
     <div 
       ref={wrapperRef}
       className="canvas-wrapper"
-      style={{ width: '100%', height: '100%' }}
+      style={{ 
+        width: dims.totalW * canvasScale, 
+        height: dims.totalH * canvasScale,
+        margin: 'auto' // Centers it in flex/block layouts when smaller than parent
+      }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDrop={handleDrop}
     >
       <Stage
         ref={stageRef}
-        width={wrapperSize.width}
-        height={wrapperSize.height}
+        width={dims.totalW * canvasScale}
+        height={dims.totalH * canvasScale}
         scaleX={canvasScale}
         scaleY={canvasScale}
-        x={canvasPan.x}
-        y={canvasPan.y}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
