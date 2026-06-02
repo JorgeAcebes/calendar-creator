@@ -5,7 +5,7 @@
 // calendar grid, and cover text. All in a multi-layer Konva Stage.
 // =============================================================================
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
 import { Stage, Layer, Rect, Line, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import { mmToPx } from '@calendar-creator/shared-types';
