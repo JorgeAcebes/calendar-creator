@@ -367,6 +367,7 @@ const PhotoPanel: React.FC = () => {
                     src={img.previewDataUrl ?? img.thumbnailPath}
                     alt={img.originalFilename}
                     draggable={false}
+                    style={{ pointerEvents: 'none', userSelect: 'none' }}
                   />
                   {used && !isSelected && (
                     <div style={{ position: 'absolute', top: 4, left: 4, background: '#12121a', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
