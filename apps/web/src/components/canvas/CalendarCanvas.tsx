@@ -13,8 +13,8 @@ import { useCalendarStore } from '@/store/calendarStore';
 import MaskedImage from './MaskedImage';
 import CalendarGrid from './CalendarGrid';
 
-function toCanvasPx(mm: number, scale: number): number {
-  return mmToPx(mm, 300) * scale;
+function toCanvasPx(mm: number): number {
+  return mmToPx(mm, 300);
 }
 
 const CalendarCanvas: React.FC = () => {
@@ -28,17 +28,31 @@ const CalendarCanvas: React.FC = () => {
   const { paperDimensions, bleed } = globalSettings;
   const page = project.pages[editor.activePageIndex];
   const canvasScale = editor.canvasZoom;
+  const canvasPan = editor.canvasPan;
 
   const [snapGuides, setSnapGuides] = useState<{ x?: number, y?: number }>({});
+  const [wrapperSize, setWrapperSize] = useState({ width: 800, height: 600 });
 
-  // Calculate dimensions
+  useEffect(() => {
+    if (!wrapperRef.current) return;
+    const observer = new ResizeObserver((entries) => {
+      setWrapperSize({
+        width: entries[0].contentRect.width,
+        height: entries[0].contentRect.height
+      });
+    });
+    observer.observe(wrapperRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Calculate unscaled logical dimensions
   const dims = useMemo(() => {
-    const paperW = toCanvasPx(paperDimensions.widthMm, canvasScale);
-    const paperH = toCanvasPx(paperDimensions.heightMm, canvasScale);
-    const bleedT = toCanvasPx(bleed.topMm, canvasScale);
-    const bleedR = toCanvasPx(bleed.rightMm, canvasScale);
-    const bleedB = toCanvasPx(bleed.bottomMm, canvasScale);
-    const bleedL = toCanvasPx(bleed.leftMm, canvasScale);
+    const paperW = toCanvasPx(paperDimensions.widthMm);
+    const paperH = toCanvasPx(paperDimensions.heightMm);
+    const bleedT = toCanvasPx(bleed.topMm);
+    const bleedR = toCanvasPx(bleed.rightMm);
+    const bleedB = toCanvasPx(bleed.bottomMm);
+    const bleedL = toCanvasPx(bleed.leftMm);
 
     return {
       paperW,
@@ -53,33 +67,47 @@ const CalendarCanvas: React.FC = () => {
       originX: bleedL,
       originY: bleedT,
     };
-  }, [paperDimensions, bleed, canvasScale]);
+  }, [paperDimensions, bleed]);
 
   const assignImage = useCalendarStore((s) => s.assignImageToRegion);
   const lastDistRef = useRef<number>(0);
 
   // Safe area (5mm from trim on each side)
-  const safeMargin = toCanvasPx(5, canvasScale);
+  const safeMargin = toCanvasPx(5);
 
   if (!page) return null;
 
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
+  const setCanvasPan = useCalendarStore((s) => s.setCanvasPan);
+  const applyZoom = useCalendarStore((s) => s.applyZoom);
+
+  // Center canvas initially if pan is 0,0
+  useEffect(() => {
+    if (editor.canvasPan.x === 0 && editor.canvasPan.y === 0 && wrapperSize.width > 800) {
+      setCanvasPan({
+        x: (wrapperSize.width - dims.totalW * editor.canvasZoom) / 2,
+        y: (wrapperSize.height - dims.totalH * editor.canvasZoom) / 2,
+      });
+    }
+  }, [wrapperSize, dims.totalW, dims.totalH]);
 
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
+      if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        const scaleBy = Math.exp(e.deltaY * -0.002);
-        const oldScale = useCalendarStore.getState().editor.canvasZoom;
-        const newScale = oldScale * scaleBy;
-        setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+        const zoomDelta = -e.deltaY * 0.01;
+        applyZoom(zoomDelta, e.clientX, e.clientY, el.getBoundingClientRect());
+      } else {
+        e.preventDefault();
+        const currentPan = useCalendarStore.getState().editor.canvasPan;
+        setCanvasPan({ x: currentPan.x - e.deltaX, y: currentPan.y - e.deltaY });
       }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [setCanvasZoom]);
+  }, [applyZoom, setCanvasPan]);
 
   const handleTouchMove = (e: any) => {
     e.evt.preventDefault();
@@ -111,41 +139,43 @@ const CalendarCanvas: React.FC = () => {
     if (!stageRef.current) return;
     
     try {
-      const payloadText = e.dataTransfer.getData('text/plain');
-      const payloadJson = e.dataTransfer.getData('application/json');
+      const payloadCalendar = e.dataTransfer.getData('application/x-calendar-photo');
       
-      let imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
-      
-      if (imageIds.length === 0) {
-        if (payloadJson) {
-          try { imageIds = JSON.parse(payloadJson); } catch(e) {}
-        } else if (payloadText && payloadText !== 'gallery-image') {
-          imageIds = payloadText.split(',');
-        }
+      let imageIds = [];
+      if (payloadCalendar) {
+        imageIds = payloadCalendar.split(',');
+      } else if (useCalendarStore.getState().editor.draggedImageIds) {
+        imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
       }
       
       if (imageIds.length === 0) return;
       
-      // Calculate drop position
+      // Calculate drop position in logical unscaled coordinates
       let pos = { x: 0, y: 0 };
       if (stageRef.current) {
         stageRef.current.setPointersPositions(e.nativeEvent);
       }
-      const stagePos = stageRef.current?.getPointerPosition();
+      const stagePos = stageRef.current?.getRelativePointerPosition();
       
       if (stagePos) {
         pos = stagePos;
       } else {
         const rect = e.currentTarget.getBoundingClientRect();
-        pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        const clientX = e.clientX - rect.left;
+        const clientY = e.clientY - rect.top;
+        const state = useCalendarStore.getState().editor;
+        pos = {
+          x: (clientX - state.canvasPan.x) / state.canvasZoom,
+          y: (clientY - state.canvasPan.y) / state.canvasZoom
+        };
       }
 
       // Find region
       const droppedRegionIndex = page.imageRegions.findIndex((r: any) => {
-        const x = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
-        const y = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
-        const w = toCanvasPx(r.mask.widthMm, canvasScale);
-        const h = toCanvasPx(r.mask.heightMm, canvasScale);
+        const x = dims.originX + toCanvasPx(r.mask.xMm);
+        const y = dims.originY + toCanvasPx(r.mask.yMm);
+        const w = toCanvasPx(r.mask.widthMm);
+        const h = toCanvasPx(r.mask.heightMm);
         return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
       });
 
@@ -178,14 +208,19 @@ const CalendarCanvas: React.FC = () => {
     <div 
       ref={wrapperRef}
       className="canvas-wrapper"
+      style={{ width: '100%', height: '100%' }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDrop={handleDrop}
     >
       <Stage
         ref={stageRef}
-        width={dims.totalW}
-        height={dims.totalH}
+        width={wrapperSize.width}
+        height={wrapperSize.height}
+        scaleX={canvasScale}
+        scaleY={canvasScale}
+        x={canvasPan.x}
+        y={canvasPan.y}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}

@@ -165,10 +165,9 @@ const EditorLayout: React.FC = () => {
         <PhotoPanel />
       </div>
 
-      {/* Center — Canvas */}
       <div 
         className="editor-layout__canvas" 
-        style={{ position: 'relative' }}
+        style={{ position: 'relative', overflow: 'hidden' }}
         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
         onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       >
