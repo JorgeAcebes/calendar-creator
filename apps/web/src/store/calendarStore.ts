@@ -36,8 +36,6 @@ interface EditorState {
   selectedRegionId: string | null;
   /** Canvas zoom level (0.1 to 2.0) */
   canvasZoom: number;
-  /** Canvas pan translation vector */
-  canvasPan: { x: number; y: number };
   /** Show bleed guides */
   showBleedGuides: boolean;
   /** Show safe area guides */
@@ -130,10 +128,6 @@ export interface CalendarStoreActions {
   selectRegion: (regionId: string | null) => void;
   /** Set canvas zoom */
   setCanvasZoom: (zoom: number) => void;
-  /** Set canvas pan */
-  setCanvasPan: (pan: { x: number; y: number }) => void;
-  /** Apply zoom towards a specific cursor point */
-  applyZoom: (delta: number, clientX: number, clientY: number, containerRect: DOMRect) => void;
   /** Toggle bleed guides visibility */
   toggleBleedGuides: () => void;
   /** Toggle safe area guides */
@@ -303,7 +297,6 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         activePageIndex: 0,
         selectedRegionId: null,
         canvasZoom: 1.0,
-        canvasPan: { x: 0, y: 0 },
         showBleedGuides: true,
         showSafeGuides: true,
         offsetStepMm: 1,
@@ -641,35 +634,6 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       setCanvasZoom: (zoom) => {
         set((state) => {
           state.editor.canvasZoom = Math.max(0.1, Math.min(2.0, zoom));
-        });
-      },
-
-      setCanvasPan: (pan) => {
-        set((state) => {
-          state.editor.canvasPan = pan;
-        });
-      },
-
-      applyZoom: (delta, clientX, clientY, containerRect) => {
-        set((state) => {
-          const s = state.editor.canvasZoom;
-          const sPrime = Math.max(0.2, Math.min(4.0, s + delta));
-          if (s === sPrime) return;
-
-          // Convert client coordinates to container-relative coordinates (p_c)
-          const pcX = clientX - containerRect.left;
-          const pcY = clientY - containerRect.top;
-
-          const tX = state.editor.canvasPan.x;
-          const tY = state.editor.canvasPan.y;
-
-          // t' = p_c - (s' / s) * (p_c - t)
-          const ratio = sPrime / s;
-          const tPrimeX = pcX - ratio * (pcX - tX);
-          const tPrimeY = pcY - ratio * (pcY - tY);
-
-          state.editor.canvasZoom = sPrime;
-          state.editor.canvasPan = { x: tPrimeX, y: tPrimeY };
         });
       },
 

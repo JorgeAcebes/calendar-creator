@@ -5,7 +5,7 @@
 // calendar grid, and cover text. All in a multi-layer Konva Stage.
 // =============================================================================
 
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Line, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import { mmToPx } from '@calendar-creator/shared-types';
@@ -13,13 +13,12 @@ import { useCalendarStore } from '@/store/calendarStore';
 import MaskedImage from './MaskedImage';
 import CalendarGrid from './CalendarGrid';
 
-function toCanvasPx(mm: number): number {
-  return mmToPx(mm, 300);
+function toCanvasPx(mm: number, scale: number): number {
+  return mmToPx(mm, 300) * scale;
 }
 
 const CalendarCanvas: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const project = useCalendarStore((s) => s.project);
   const editor = useCalendarStore((s) => s.editor);
   const selectRegion = useCalendarStore((s) => s.selectRegion);
@@ -31,16 +30,14 @@ const CalendarCanvas: React.FC = () => {
 
   const [snapGuides, setSnapGuides] = useState<{ x?: number, y?: number }>({});
 
-
-
-  // Calculate unscaled logical dimensions
+  // Calculate dimensions
   const dims = useMemo(() => {
-    const paperW = toCanvasPx(paperDimensions.widthMm);
-    const paperH = toCanvasPx(paperDimensions.heightMm);
-    const bleedT = toCanvasPx(bleed.topMm);
-    const bleedR = toCanvasPx(bleed.rightMm);
-    const bleedB = toCanvasPx(bleed.bottomMm);
-    const bleedL = toCanvasPx(bleed.leftMm);
+    const paperW = toCanvasPx(paperDimensions.widthMm, canvasScale);
+    const paperH = toCanvasPx(paperDimensions.heightMm, canvasScale);
+    const bleedT = toCanvasPx(bleed.topMm, canvasScale);
+    const bleedR = toCanvasPx(bleed.rightMm, canvasScale);
+    const bleedB = toCanvasPx(bleed.bottomMm, canvasScale);
+    const bleedL = toCanvasPx(bleed.leftMm, canvasScale);
 
     return {
       paperW,
@@ -55,57 +52,26 @@ const CalendarCanvas: React.FC = () => {
       originX: bleedL,
       originY: bleedT,
     };
-  }, [paperDimensions, bleed]);
+  }, [paperDimensions, bleed, canvasScale]);
 
   const assignImage = useCalendarStore((s) => s.assignImageToRegion);
   const lastDistRef = useRef<number>(0);
 
   // Safe area (5mm from trim on each side)
-  const safeMargin = toCanvasPx(5);
+  const safeMargin = toCanvasPx(5, canvasScale);
 
   if (!page) return null;
 
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
-  useEffect(() => {
-    const el = wrapperRef.current;
-    if (!el) return;
-    const scrollContainer = el.parentElement;
-    if (!scrollContainer) return;
-
-    const onWheel = (e: WheelEvent) => {
-      if (e.ctrlKey) {
-        e.preventDefault();
-        const oldScale = useCalendarStore.getState().editor.canvasZoom;
-        const scaleBy = Math.exp(e.deltaY * -0.002);
-        const newScale = Math.max(0.2, Math.min(oldScale * scaleBy, 4));
-        if (oldScale === newScale) return;
-
-        const rect = scrollContainer.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-
-        // Only adjust scroll if we are actually overflowing
-        const isOverflowingX = scrollContainer.scrollWidth > scrollContainer.clientWidth;
-        const isOverflowingY = scrollContainer.scrollHeight > scrollContainer.clientHeight;
-
-        const docX = mouseX + scrollContainer.scrollLeft;
-        const docY = mouseY + scrollContainer.scrollTop;
-
-        const newDocX = docX * (newScale / oldScale);
-        const newDocY = docY * (newScale / oldScale);
-
-        setCanvasZoom(newScale);
-
-        setTimeout(() => {
-          if (isOverflowingX) scrollContainer.scrollLeft = newDocX - mouseX;
-          if (isOverflowingY) scrollContainer.scrollTop = newDocY - mouseY;
-        }, 0);
-      }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [setCanvasZoom]);
+  const handleWheel = (e: any) => {
+    if (!e.evt.ctrlKey) return;
+    e.evt.preventDefault();
+    const scaleBy = Math.exp(e.evt.deltaY * -0.002);
+    const oldScale = canvasScale;
+    const newScale = oldScale * scaleBy;
+    setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+  };
 
   const handleTouchMove = (e: any) => {
     e.evt.preventDefault();
@@ -137,43 +103,39 @@ const CalendarCanvas: React.FC = () => {
     if (!stageRef.current) return;
     
     try {
-      const payloadCalendar = e.dataTransfer.getData('application/x-calendar-photo');
+      const payloadText = e.dataTransfer.getData('text/plain');
+      const payloadJson = e.dataTransfer.getData('application/json');
       
-      let imageIds: string[] = [];
-      if (payloadCalendar) {
-        imageIds = payloadCalendar.split(',');
-      } else if (useCalendarStore.getState().editor.draggedImageIds) {
-        imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
+      let imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
+      
+      if (imageIds.length === 0) {
+        if (payloadJson) {
+          try { imageIds = JSON.parse(payloadJson); } catch(e) {}
+        } else if (payloadText && payloadText !== 'gallery-image') {
+          imageIds = payloadText.split(',');
+        }
       }
       
       if (imageIds.length === 0) return;
       
-      // Calculate drop position in logical unscaled coordinates
+      // Calculate drop position
       let pos = { x: 0, y: 0 };
-      if (stageRef.current) {
-        stageRef.current.setPointersPositions(e.nativeEvent);
-      }
-      const stagePos = stageRef.current?.getRelativePointerPosition();
+      stageRef.current.setPointersPositions(e);
+      const stagePos = stageRef.current.getPointerPosition();
       
       if (stagePos) {
         pos = stagePos;
       } else {
         const rect = e.currentTarget.getBoundingClientRect();
-        const clientX = e.clientX - rect.left;
-        const clientY = e.clientY - rect.top;
-        const state = useCalendarStore.getState().editor;
-        pos = {
-          x: (clientX) / state.canvasZoom,
-          y: (clientY) / state.canvasZoom
-        };
+        pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
       }
 
       // Find region
       const droppedRegionIndex = page.imageRegions.findIndex((r: any) => {
-        const x = dims.originX + toCanvasPx(r.mask.xMm);
-        const y = dims.originY + toCanvasPx(r.mask.yMm);
-        const w = toCanvasPx(r.mask.widthMm);
-        const h = toCanvasPx(r.mask.heightMm);
+        const x = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
+        const y = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
+        const w = toCanvasPx(r.mask.widthMm, canvasScale);
+        const h = toCanvasPx(r.mask.heightMm, canvasScale);
         return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
       });
 
@@ -204,23 +166,16 @@ const CalendarCanvas: React.FC = () => {
 
   return (
     <div 
-      ref={wrapperRef}
       className="canvas-wrapper"
-      style={{ 
-        width: dims.totalW * canvasScale, 
-        height: dims.totalH * canvasScale,
-        margin: 'auto' // Centers it in flex/block layouts when smaller than parent
-      }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDrop={handleDrop}
     >
       <Stage
         ref={stageRef}
-        width={dims.totalW * canvasScale}
-        height={dims.totalH * canvasScale}
-        scaleX={canvasScale}
-        scaleY={canvasScale}
+        width={dims.totalW}
+        height={dims.totalH}
+        onWheel={handleWheel}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
@@ -281,13 +236,13 @@ const CalendarCanvas: React.FC = () => {
           {/* Cover text */}
           {page.type === 'cover' && page.coverText && (() => {
             const defaultY = page.coverText.positionPreset === 'top-center'
-              ? toCanvasPx(30)
+              ? toCanvasPx(30, canvasScale)
               : page.coverText.positionPreset === 'center'
-                ? dims.paperH / 2 - toCanvasPx(20)
-                : dims.paperH - toCanvasPx(70);
+                ? dims.paperH / 2 - toCanvasPx(20, canvasScale)
+                : dims.paperH - toCanvasPx(70, canvasScale);
 
-            const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm) : 0;
-            const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm) : defaultY;
+            const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm, canvasScale) : 0;
+            const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm, canvasScale) : defaultY;
 
             return (
             <Group
@@ -308,7 +263,7 @@ const CalendarCanvas: React.FC = () => {
                 }
                 
                 // Snap Y (center of page)
-                const defaultCenterY = dims.paperH / 2 - toCanvasPx(20);
+                const defaultCenterY = dims.paperH / 2 - toCanvasPx(20, canvasScale);
                 if (Math.abs(newY - defaultCenterY) < 15) {
                   newY = defaultCenterY;
                   snapY = dims.originY + dims.paperH / 2;
@@ -424,7 +379,7 @@ const CalendarCanvas: React.FC = () => {
                   x={dims.originX}
                   y={dims.originY}
                   width={dims.paperW}
-                  height={toCanvasPx(globalSettings.bindingMarginMm || 0)}
+                  height={toCanvasPx(globalSettings.bindingMarginMm || 0, canvasScale)}
                   fill="rgba(0,0,0,0.15)"
                 />
               )}

@@ -165,12 +165,8 @@ const EditorLayout: React.FC = () => {
         <PhotoPanel />
       </div>
 
-      <div 
-        className="editor-layout__canvas" 
-        style={{ position: 'relative', overflow: 'auto', display: 'flex' }}
-        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-        onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-      >
+      {/* Center — Canvas */}
+      <div className="editor-layout__canvas" style={{ position: 'relative' }}>
         {activePageIndex > 0 && (
           <button
             className="btn btn--icon glass-panel"
