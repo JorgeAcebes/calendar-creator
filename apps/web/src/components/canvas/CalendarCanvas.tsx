@@ -141,7 +141,7 @@ const CalendarCanvas: React.FC = () => {
     try {
       const payloadCalendar = e.dataTransfer.getData('application/x-calendar-photo');
       
-      let imageIds = [];
+      let imageIds: string[] = [];
       if (payloadCalendar) {
         imageIds = payloadCalendar.split(',');
       } else if (useCalendarStore.getState().editor.draggedImageIds) {
@@ -281,13 +281,13 @@ const CalendarCanvas: React.FC = () => {
           {/* Cover text */}
           {page.type === 'cover' && page.coverText && (() => {
             const defaultY = page.coverText.positionPreset === 'top-center'
-              ? toCanvasPx(30, canvasScale)
+              ? toCanvasPx(30)
               : page.coverText.positionPreset === 'center'
-                ? dims.paperH / 2 - toCanvasPx(20, canvasScale)
-                : dims.paperH - toCanvasPx(70, canvasScale);
+                ? dims.paperH / 2 - toCanvasPx(20)
+                : dims.paperH - toCanvasPx(70);
 
-            const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm, canvasScale) : 0;
-            const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm, canvasScale) : defaultY;
+            const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm) : 0;
+            const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm) : defaultY;
 
             return (
             <Group
@@ -308,7 +308,7 @@ const CalendarCanvas: React.FC = () => {
                 }
                 
                 // Snap Y (center of page)
-                const defaultCenterY = dims.paperH / 2 - toCanvasPx(20, canvasScale);
+                const defaultCenterY = dims.paperH / 2 - toCanvasPx(20);
                 if (Math.abs(newY - defaultCenterY) < 15) {
                   newY = defaultCenterY;
                   snapY = dims.originY + dims.paperH / 2;
@@ -424,7 +424,7 @@ const CalendarCanvas: React.FC = () => {
                   x={dims.originX}
                   y={dims.originY}
                   width={dims.paperW}
-                  height={toCanvasPx(globalSettings.bindingMarginMm || 0, canvasScale)}
+                  height={toCanvasPx(globalSettings.bindingMarginMm || 0)}
                   fill="rgba(0,0,0,0.15)"
                 />
               )}
