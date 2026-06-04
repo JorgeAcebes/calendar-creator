@@ -44,6 +44,8 @@ interface EditorState {
   offsetStepMm: number;
   /** Currently dragged image IDs from the gallery */
   draggedImageIds: string[] | null;
+  /** Region ID being hovered during a gallery drag */
+  dragOverRegionId: string | null;
 }
 
 export interface CalendarStoreState {
@@ -136,6 +138,8 @@ export interface CalendarStoreActions {
   setOffsetStepMm: (step: number) => void;
   /** Set dragged image IDs */
   setDraggedImageIds: (ids: string[] | null) => void;
+  /** Set drag over region ID */
+  setDragOverRegionId: (regionId: string | null) => void;
 
   // --- Auto Actions ---
   /** Randomly fill empty image regions with uploaded images */
@@ -301,6 +305,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         showSafeGuides: true,
         offsetStepMm: 1,
         draggedImageIds: null,
+        dragOverRegionId: null,
       },
 
       // --- Project Actions ---
@@ -658,6 +663,13 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       setDraggedImageIds: (ids) => {
         set((state) => {
           state.editor.draggedImageIds = ids;
+          if (!ids) state.editor.dragOverRegionId = null;
+        });
+      },
+
+      setDragOverRegionId: (regionId) => {
+        set((state) => {
+          state.editor.dragOverRegionId = regionId;
         });
       },
 
