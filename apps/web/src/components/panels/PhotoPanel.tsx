@@ -143,6 +143,9 @@ const PhotoPanel: React.FC = () => {
     }
   }, [processFiles]);
 
+  // In Tauri, disable react-dropzone drag to prevent double-processing with onDragDropEvent
+  const isTauri = !!(window as any).__TAURI_INTERNALS__;
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
@@ -151,6 +154,7 @@ const PhotoPanel: React.FC = () => {
       'image/webp': ['.webp'],
     },
     multiple: true,
+    noDrag: isTauri,
   });
 
   const imageList = Object.values(images) as any[];
@@ -214,6 +218,34 @@ const PhotoPanel: React.FC = () => {
   };
 
   const handleDragEnd = () => {
+    // Primary drop mechanism: read dragOverRegionId from store and assign.
+    // This fires on the SOURCE element and is guaranteed to fire even when
+    // the drop target (Konva canvas overlay) doesn't receive the drop event.
+    const state = useCalendarStore.getState();
+    const { dragOverRegionId, draggedImageIds: ids, activePageIndex: pgIdx } = state.editor;
+
+    if (dragOverRegionId && ids && ids.length > 0) {
+      const pg = state.project.pages[pgIdx];
+      if (pg) {
+        const regionIndex = pg.imageRegions.findIndex((r: any) => r.id === dragOverRegionId);
+        if (regionIndex >= 0) {
+          state.assignImageToRegion(pgIdx, dragOverRegionId, ids[0]);
+          state.selectRegion(dragOverRegionId);
+
+          // Distribute remaining images to empty regions
+          const remainingIds = ids.slice(1);
+          if (remainingIds.length > 0) {
+            const emptyRegions = pg.imageRegions.filter(
+              (r: any, idx: number) => idx !== regionIndex && !r.imageFileId,
+            );
+            for (let i = 0; i < Math.min(remainingIds.length, emptyRegions.length); i++) {
+              state.assignImageToRegion(pgIdx, emptyRegions[i].id, remainingIds[i]);
+            }
+          }
+        }
+      }
+    }
+
     setDraggedImageIds(null);
   };
 

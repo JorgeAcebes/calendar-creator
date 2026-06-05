@@ -11,6 +11,7 @@ import {
   Grid3X3,
   ZoomIn,
   ZoomOut,
+  Maximize2,
   Settings,
   Globe,
   Undo2,
@@ -114,11 +115,10 @@ const Toolbar: React.FC = () => {
 
         <div className="toolbar__separator" />
 
-        {/* Zoom controls */}
         <button
           className="btn btn--ghost btn--icon btn--sm tooltip"
           data-tooltip={t('toolbar.zoom_out')}
-          onClick={() => setCanvasZoom(editor.canvasZoom - 0.05)}
+          onClick={() => setCanvasZoom(editor.canvasZoom - 0.1)}
           disabled={editor.canvasZoom <= 0.1}
         >
           <ZoomOut size={16} />
@@ -135,10 +135,33 @@ const Toolbar: React.FC = () => {
         <button
           className="btn btn--ghost btn--icon btn--sm tooltip"
           data-tooltip={t('toolbar.zoom_in')}
-          onClick={() => setCanvasZoom(editor.canvasZoom + 0.05)}
-          disabled={editor.canvasZoom >= 2}
+          onClick={() => setCanvasZoom(editor.canvasZoom + 0.1)}
+          disabled={editor.canvasZoom >= 4}
         >
           <ZoomIn size={16} />
+        </button>
+        <button
+          className="btn btn--ghost btn--icon btn--sm tooltip"
+          data-tooltip="Ajustar a página"
+          onClick={() => {
+            // Estimate the available canvas area (viewport minus sidebar, panel, toolbar, nav)
+            const sidebarW = 280;
+            const panelW = 320;
+            const toolbarH = 48;
+            const navH = 96;
+            const padding = 32;
+            const availW = window.innerWidth - sidebarW - panelW - padding * 2;
+            const availH = window.innerHeight - toolbarH - navH - padding * 2;
+            const paper = project.globalSettings.paperDimensions;
+            const bleed = project.globalSettings.bleed;
+            const dpi = 300;
+            const totalW = (paper.widthMm + bleed.leftMm + bleed.rightMm) / 25.4 * dpi;
+            const totalH = (paper.heightMm + bleed.topMm + bleed.bottomMm) / 25.4 * dpi;
+            const zoom = Math.min(availW / totalW, availH / totalH);
+            setCanvasZoom(Math.max(0.1, Math.min(zoom, 4)));
+          }}
+        >
+          <Maximize2 size={16} />
         </button>
 
         <div className="toolbar__separator" />

@@ -638,7 +638,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
 
       setCanvasZoom: (zoom) => {
         set((state) => {
-          state.editor.canvasZoom = Math.max(0.1, Math.min(2.0, zoom));
+          state.editor.canvasZoom = Math.max(0.1, Math.min(4.0, zoom));
         });
       },
 
