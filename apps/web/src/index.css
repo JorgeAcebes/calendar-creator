@@ -499,6 +499,8 @@ body {
   cursor: grab;
   border: 2px solid transparent;
   transition: all var(--transition-base);
+  user-select: none;
+  -webkit-user-drag: element;
 }
 
 .thumbnail:hover {

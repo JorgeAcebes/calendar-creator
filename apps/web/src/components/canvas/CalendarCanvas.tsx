@@ -265,10 +265,6 @@ const CalendarCanvas: React.FC = () => {
     <div
       className="canvas-wrapper"
       style={{ position: 'relative' }}
-      onDragOver={handleOverlayDragOver}
-      onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-      onDragLeave={handleOverlayDragLeave}
-      onDrop={handleOverlayDrop}
     >
       <Stage
         ref={stageRef}
@@ -515,9 +511,13 @@ const CalendarCanvas: React.FC = () => {
           left: 0,
           width: dims.totalW,
           height: dims.totalH,
-          pointerEvents: 'none',
+          pointerEvents: isDraggingFromGallery ? 'all' : 'none',
           zIndex: isDraggingFromGallery ? 10 : -1,
         }}
+        onDragOver={handleOverlayDragOver}
+        onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+        onDragLeave={handleOverlayDragLeave}
+        onDrop={handleOverlayDrop}
       >
         {/* Render drop-target highlight rectangles for each image region */}
         {isDraggingFromGallery && page.imageRegions.map((r: any) => {
