@@ -9,6 +9,25 @@ import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import type { UploadedImage } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
+import { showToast } from '@/components/layout/Toast';
+
+// ---------------------------------------------------------------------------
+// Helper: find ALL pages where an image is used
+// ---------------------------------------------------------------------------
+
+function findAllImageUsages(imageId: string, pages: any[]): string[] {
+  const usages: string[] = [];
+  for (const page of pages) {
+    if (page.imageRegions.some((r: any) => r.imageFileId === imageId)) {
+      if (page.type === 'cover') {
+        usages.push('Portada');
+      } else {
+        usages.push(page.month ? `Mes ${page.month}` : `Página ${page.index}`);
+      }
+    }
+  }
+  return usages;
+}
 
 const PhotoPanel: React.FC = () => {
   const navigate = useNavigate();
@@ -48,9 +67,19 @@ const PhotoPanel: React.FC = () => {
     const filesToUpload = [...newFiles];
 
     if (duplicates.length > 0) {
+      const dupNames = duplicates.map(d => d.name).join(', ');
       const msg = duplicates.length === 1 
         ? `La foto "${duplicates[0].name}" ya ha sido subida. ¿Deseas volver a subirla?`
-        : `${duplicates.length} fotos ya han sido subidas previamente. ¿Deseas volver a subirlas?`;
+        : `${duplicates.length} fotos ya han sido subidas previamente (${dupNames}). ¿Deseas volver a subirlas?`;
+
+      // Show toast warning and also show confirm dialog
+      showToast({
+        type: 'warning',
+        message: duplicates.length === 1
+          ? `Foto duplicada detectada: "${duplicates[0].name}"`
+          : `${duplicates.length} fotos duplicadas detectadas`,
+        duration: 3000,
+      });
         
       if (window.confirm(msg)) {
         filesToUpload.push(...duplicates);
@@ -159,17 +188,6 @@ const PhotoPanel: React.FC = () => {
 
   const imageList = Object.values(images) as any[];
 
-  // Find which page uses a given image (returns page label or null)
-  const findImageUsage = (imageId: string): string | null => {
-    for (const page of pages) {
-      if (page.imageRegions.some((r: any) => r.imageFileId === imageId)) {
-        if (page.type === 'cover') return 'Portada';
-        return page.month ? `Página ${page.month}` : `Página ${page.index}`;
-      }
-    }
-    return null;
-  };
-
   const [duplicateWarning, setDuplicateWarning] = React.useState<string | null>(null);
   const [pendingImageId, setPendingImageId] = React.useState<string | null>(null);
   const [selectionMode, setSelectionMode] = React.useState(false);
@@ -189,11 +207,19 @@ const PhotoPanel: React.FC = () => {
 
     if (!selectedRegionId || !activePage) return;
 
-    const usedIn = findImageUsage(imageId);
-    if (usedIn && pendingImageId !== imageId && project.globalSettings.warnOnDuplicatePhotos) {
+    const usages = findAllImageUsages(imageId, pages);
+    if (usages.length > 0 && pendingImageId !== imageId && project.globalSettings.warnOnDuplicatePhotos) {
       // First click on a used image: warn
-      setDuplicateWarning(`⚠ Esta foto ya está en uso (${usedIn}). Haz clic de nuevo para confirmar.`);
+      const usageStr = usages.join(', ');
+      setDuplicateWarning(`⚠ Esta foto ya está en uso (${usageStr}). Haz clic de nuevo para confirmar.`);
       setPendingImageId(imageId);
+
+      showToast({
+        type: 'warning',
+        message: `Esta foto ya está asignada en: ${usageStr}`,
+        duration: 4000,
+      });
+
       setTimeout(() => { setDuplicateWarning(null); setPendingImageId(null); }, 4000);
       return;
     }
@@ -218,34 +244,10 @@ const PhotoPanel: React.FC = () => {
   };
 
   const handleDragEnd = () => {
-    // Primary drop mechanism: read dragOverRegionId from store and assign.
-    // This fires on the SOURCE element and is guaranteed to fire even when
-    // the drop target (Konva canvas overlay) doesn't receive the drop event.
-    const state = useCalendarStore.getState();
-    const { dragOverRegionId, draggedImageIds: ids, activePageIndex: pgIdx } = state.editor;
-
-    if (dragOverRegionId && ids && ids.length > 0) {
-      const pg = state.project.pages[pgIdx];
-      if (pg) {
-        const regionIndex = pg.imageRegions.findIndex((r: any) => r.id === dragOverRegionId);
-        if (regionIndex >= 0) {
-          state.assignImageToRegion(pgIdx, dragOverRegionId, ids[0]);
-          state.selectRegion(dragOverRegionId);
-
-          // Distribute remaining images to empty regions
-          const remainingIds = ids.slice(1);
-          if (remainingIds.length > 0) {
-            const emptyRegions = pg.imageRegions.filter(
-              (r: any, idx: number) => idx !== regionIndex && !r.imageFileId,
-            );
-            for (let i = 0; i < Math.min(remainingIds.length, emptyRegions.length); i++) {
-              state.assignImageToRegion(pgIdx, emptyRegions[i].id, remainingIds[i]);
-            }
-          }
-        }
-      }
-    }
-
+    // IMPORTANT: Do NOT assign images here. The drop handler in CalendarCanvas
+    // (handleOverlayDrop) is responsible for assignment. This handler only
+    // cleans up the drag state. Previously, both handleDragEnd AND
+    // handleOverlayDrop were assigning, causing double-assignment bugs.
     setDraggedImageIds(null);
   };
 
@@ -381,8 +383,10 @@ const PhotoPanel: React.FC = () => {
           <div className="thumbnail-grid stagger-children">
             {imageList.map((img) => {
               const isLowRes = img.widthPx < 1200 && img.heightPx < 1200;
-              const used = !!findImageUsage(img.id);
+              const usages = findAllImageUsages(img.id, pages);
+              const used = usages.length > 0;
               const isSelected = selectedImageIds.has(img.id);
+              const usageStr = usages.join(', ');
 
               return (
                 <div
@@ -392,7 +396,7 @@ const PhotoPanel: React.FC = () => {
                   draggable
                   onDragStart={(e) => handleDragStart(e, img.id)}
                   onDragEnd={handleDragEnd}
-                  title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB`}
+                  title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB${used ? `\n\n📌 En uso: ${usageStr}` : ''}`}
                   style={isSelected ? { outline: '3px solid var(--color-primary)' } : {}}
                 >
                   <img
@@ -401,8 +405,15 @@ const PhotoPanel: React.FC = () => {
                     draggable={false}
                   />
                   {used && !isSelected && (
-                    <div style={{ position: 'absolute', top: 4, left: 4, background: '#12121a', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                      <CheckCircle2 size={14} color="#2ed573" />
+                    <div style={{ 
+                      position: 'absolute', top: 4, left: 4, 
+                      background: '#12121a', borderRadius: 10, 
+                      padding: '1px 6px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                      display: 'flex', alignItems: 'center', gap: 3,
+                      fontSize: 10, color: '#2ed573', fontWeight: 600,
+                    }}>
+                      <CheckCircle2 size={11} color="#2ed573" />
+                      {usages.length > 1 ? `×${usages.length}` : ''}
                     </div>
                   )}
                   {isSelected && (

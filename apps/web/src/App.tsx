@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import EditorLayout from '@/components/layout/EditorLayout';
 import Dashboard from '@/pages/Dashboard';
 import Donate from '@/pages/Donate';
+import ToastContainer from '@/components/layout/Toast';
 
 const App: React.FC = () => {
   return (
@@ -12,6 +13,7 @@ const App: React.FC = () => {
         <Route path="/editor/:id" element={<EditorLayout />} />
         <Route path="/donate" element={<Donate />} />
       </Routes>
+      <ToastContainer />
     </Router>
   );
 };

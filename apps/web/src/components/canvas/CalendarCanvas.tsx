@@ -12,6 +12,7 @@ import { mmToPx } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import MaskedImage from './MaskedImage';
 import CalendarGrid from './CalendarGrid';
+import { showToast } from '@/components/layout/Toast';
 
 function toCanvasPx(mm: number, scale: number): number {
   return mmToPx(mm, 300) * scale;
@@ -165,30 +166,55 @@ const CalendarCanvas: React.FC = () => {
       const regionId = findRegionAtPos(e.clientX, e.clientY);
       if (!regionId) return;
 
-      const droppedRegionIndex = page.imageRegions.findIndex((r: any) => r.id === regionId);
+      const currentPageIndex = useCalendarStore.getState().editor.activePageIndex;
+      const currentPage = useCalendarStore.getState().project.pages[currentPageIndex];
+      if (!currentPage) return;
+
+      const droppedRegionIndex = currentPage.imageRegions.findIndex((r: any) => r.id === regionId);
       if (droppedRegionIndex < 0) return;
 
+      // Check for duplicate usage and warn via toast
+      const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
+      if (warnOnDuplicate) {
+        const allPages = useCalendarStore.getState().project.pages;
+        for (const imgId of imageIds) {
+          const usedPages: string[] = [];
+          for (const p of allPages) {
+            if (p.imageRegions.some((r: any) => r.imageFileId === imgId)) {
+              usedPages.push(p.type === 'cover' ? 'Portada' : (p.month ? `Mes ${p.month}` : `Página ${p.index}`));
+            }
+          }
+          if (usedPages.length > 0) {
+            showToast({
+              type: 'warning',
+              message: `Esta foto ya está en uso en: ${usedPages.join(', ')}. Se ha asignado de todos modos.`,
+              duration: 5000,
+            });
+          }
+        }
+      }
+
       // Assign the first image to the target region
-      assignImage(page.index, page.imageRegions[droppedRegionIndex].id, imageIds[0]);
-      selectRegion(page.imageRegions[droppedRegionIndex].id);
+      assignImage(currentPageIndex, currentPage.imageRegions[droppedRegionIndex].id, imageIds[0]);
+      selectRegion(currentPage.imageRegions[droppedRegionIndex].id);
 
       // Distribute remaining images to other regions
       let remainingIds = imageIds.slice(1);
       if (remainingIds.length > 0) {
-        const emptyRegions = page.imageRegions.filter(
+        const emptyRegions = currentPage.imageRegions.filter(
           (r: any, idx: number) => idx !== droppedRegionIndex && !r.imageFileId,
         );
         for (let i = 0; i < Math.min(remainingIds.length, emptyRegions.length); i++) {
-          assignImage(page.index, emptyRegions[i].id, remainingIds[i]);
+          assignImage(currentPageIndex, emptyRegions[i].id, remainingIds[i]);
         }
         remainingIds = remainingIds.slice(emptyRegions.length);
 
         if (remainingIds.length > 0) {
-          const filledRegions = page.imageRegions.filter(
+          const filledRegions = currentPage.imageRegions.filter(
             (r: any, idx: number) => idx !== droppedRegionIndex && !!r.imageFileId,
           );
           for (let i = 0; i < Math.min(remainingIds.length, filledRegions.length); i++) {
-            assignImage(page.index, filledRegions[i].id, remainingIds[i]);
+            assignImage(currentPageIndex, filledRegions[i].id, remainingIds[i]);
           }
         }
       }
@@ -196,6 +222,8 @@ const CalendarCanvas: React.FC = () => {
       console.error('Drop error', err);
     } finally {
       setDragOverRegionId(null);
+      // Clean up dragged image IDs from store
+      useCalendarStore.getState().setDraggedImageIds(null);
     }
   };
 
@@ -208,7 +236,6 @@ const CalendarCanvas: React.FC = () => {
       style={{ position: 'relative' }}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
-      onDrop={handleOverlayDrop}
     >
       <Stage
         ref={stageRef}
