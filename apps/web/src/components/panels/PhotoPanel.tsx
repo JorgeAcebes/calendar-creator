@@ -42,50 +42,13 @@ const PhotoPanel: React.FC = () => {
   const activePage = pages[activePageIndex];
   const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
 
-  const processFiles = useCallback(async (filesData: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
-    const currentImages = Object.values(useCalendarStore.getState().project.images);
-    const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
+  const [duplicateUploadPrompt, setDuplicateUploadPrompt] = React.useState<{
+    duplicates: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[];
+    newFiles: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[];
+    resolve: (uploadDuplicates: boolean) => void;
+  } | null>(null);
 
-    const duplicates: typeof filesData = [];
-    const newFiles: typeof filesData = [];
-
-    for (const file of filesData) {
-      if (warnOnDuplicate) {
-        const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
-        const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
-        
-        if (existsInStore || existsInBatch) {
-          if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
-             duplicates.push(file);
-          }
-          continue;
-        }
-      }
-      newFiles.push(file);
-    }
-
-    const filesToUpload = [...newFiles];
-
-    if (duplicates.length > 0) {
-      const dupNames = duplicates.map(d => d.name).join(', ');
-      const msg = duplicates.length === 1 
-        ? `La foto "${duplicates[0].name}" ya ha sido subida. ¿Deseas volver a subirla?`
-        : `${duplicates.length} fotos ya han sido subidas previamente (${dupNames}). ¿Deseas volver a subirlas?`;
-
-      // Show toast warning and also show confirm dialog
-      showToast({
-        type: 'warning',
-        message: duplicates.length === 1
-          ? `Foto duplicada detectada: "${duplicates[0].name}"`
-          : `${duplicates.length} fotos duplicadas detectadas`,
-        duration: 3000,
-      });
-        
-      if (window.confirm(msg)) {
-        filesToUpload.push(...duplicates);
-      }
-    }
-
+  const performUpload = async (filesToUpload: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
     for (const file of filesToUpload) {
       try {
         const buffer = await file.arrayBuffer();
@@ -115,6 +78,43 @@ const PhotoPanel: React.FC = () => {
         console.error("Error processing file", err);
       }
     }
+  };
+
+  const processFiles = useCallback(async (filesData: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
+    const currentImages = Object.values(useCalendarStore.getState().project.images);
+    const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
+
+    const duplicates: typeof filesData = [];
+    const newFiles: typeof filesData = [];
+
+    for (const file of filesData) {
+      if (warnOnDuplicate) {
+        const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
+        const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
+        
+        if (existsInStore || existsInBatch) {
+          if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
+             duplicates.push(file);
+          }
+          continue;
+        }
+      }
+      newFiles.push(file);
+    }
+
+    const filesToUpload = [...newFiles];
+
+    if (duplicates.length > 0) {
+      const uploadDuplicates = await new Promise<boolean>((resolve) => {
+        setDuplicateUploadPrompt({ duplicates, newFiles, resolve });
+      });
+      setDuplicateUploadPrompt(null);
+      if (uploadDuplicates) {
+        filesToUpload.push(...duplicates);
+      }
+    }
+
+    await performUpload(filesToUpload);
   }, [addImage]);
 
   const onDrop = useCallback(
@@ -252,7 +252,51 @@ const PhotoPanel: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+      {duplicateUploadPrompt && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999
+        }}>
+          <div style={{
+            background: 'var(--color-bg-secondary)', border: '1px solid var(--color-glass-border)',
+            borderRadius: 'var(--radius-lg)', padding: 'var(--space-6)', width: 400,
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px', color: 'var(--color-warning)' }}>
+              <AlertTriangle size={24} />
+              <h3 style={{ margin: 0, color: 'var(--color-text-primary)' }}>Fotos Duplicadas Detectadas</h3>
+            </div>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: '16px', lineHeight: 1.5 }}>
+              Has intentado subir {duplicateUploadPrompt.duplicates.length} foto{duplicateUploadPrompt.duplicates.length > 1 ? 's' : ''} que ya existe{duplicateUploadPrompt.duplicates.length > 1 ? 'n' : ''} en la galería. ¿Qué deseas hacer?
+            </p>
+            <div style={{ maxHeight: 100, overflowY: 'auto', background: 'var(--color-bg-primary)', padding: '8px', borderRadius: '4px', marginBottom: '24px' }}>
+              {duplicateUploadPrompt.duplicates.map(d => (
+                <div key={d.name} style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontFamily: 'monospace' }}>
+                  • {d.name} ({(d.size / 1024 / 1024).toFixed(1)} MB)
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button 
+                className="btn btn--ghost" 
+                onClick={() => duplicateUploadPrompt.resolve(false)}
+              >
+                Omitir duplicados
+              </button>
+              <button 
+                className="btn btn--primary" 
+                onClick={() => duplicateUploadPrompt.resolve(true)}
+              >
+                Subir de todos modos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="panel-section" style={{ paddingBottom: 0, borderBottom: 'none' }}>
         <button 
           className="btn" 

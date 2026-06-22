@@ -70,12 +70,43 @@ const CalendarCanvas: React.FC = () => {
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
   const handleWheel = (e: any) => {
-    if (!e.evt.ctrlKey) return;
+    // Zoom on any wheel event (mouse wheel or touchpad scroll/pinch)
     e.evt.preventDefault();
+    
+    const stage = stageRef.current;
+    if (!stage) return;
+    
+    // Get the wrapper container which is being scrolled (usually the parent with overflow: auto)
+    const scrollContainer = stage.container().closest('.editor-layout__canvas');
+    if (!scrollContainer) return;
+    
+    // Position of cursor relative to the viewport/scroll container
+    const rect = scrollContainer.getBoundingClientRect();
+    const pointerX = e.evt.clientX - rect.left;
+    const pointerY = e.evt.clientY - rect.top;
+    
+    // Point on the canvas that is under the cursor
+    const scrollLeft = scrollContainer.scrollLeft;
+    const scrollTop = scrollContainer.scrollTop;
+    
+    const canvasPointX = (pointerX + scrollLeft) / canvasScale;
+    const canvasPointY = (pointerY + scrollTop) / canvasScale;
+
+    // Calculate new scale
     const scaleBy = Math.exp(e.evt.deltaY * -0.002);
     const oldScale = canvasScale;
-    const newScale = oldScale * scaleBy;
-    setCanvasZoom(Math.max(0.2, Math.min(newScale, 4)));
+    const newScale = Math.max(0.2, Math.min(oldScale * scaleBy, 4));
+    
+    setCanvasZoom(newScale);
+
+    // After state updates and re-render, we need to adjust scroll position
+    // Since setCanvasZoom is async, we use a timeout to let the DOM update the canvas size
+    requestAnimationFrame(() => {
+      if (scrollContainer) {
+        scrollContainer.scrollLeft = (canvasPointX * newScale) - pointerX;
+        scrollContainer.scrollTop = (canvasPointY * newScale) - pointerY;
+      }
+    });
   };
 
   const handleTouchMove = (e: any) => {
@@ -234,8 +265,10 @@ const CalendarCanvas: React.FC = () => {
     <div
       className="canvas-wrapper"
       style={{ position: 'relative' }}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+      onDragOver={handleOverlayDragOver}
       onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+      onDragLeave={handleOverlayDragLeave}
+      onDrop={handleOverlayDrop}
     >
       <Stage
         ref={stageRef}
@@ -482,12 +515,9 @@ const CalendarCanvas: React.FC = () => {
           left: 0,
           width: dims.totalW,
           height: dims.totalH,
-          pointerEvents: isDraggingFromGallery ? 'auto' : 'none',
+          pointerEvents: 'none',
           zIndex: isDraggingFromGallery ? 10 : -1,
         }}
-        onDragOver={handleOverlayDragOver}
-        onDragLeave={handleOverlayDragLeave}
-        onDrop={handleOverlayDrop}
       >
         {/* Render drop-target highlight rectangles for each image region */}
         {isDraggingFromGallery && page.imageRegions.map((r: any) => {
