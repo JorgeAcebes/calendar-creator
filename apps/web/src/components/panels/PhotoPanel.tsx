@@ -192,8 +192,12 @@ const PhotoPanel: React.FC = () => {
   const [pendingImageId, setPendingImageId] = React.useState<string | null>(null);
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [selectedImageIds, setSelectedImageIds] = React.useState<Set<string>>(new Set());
+  const [draggedImageId, setDraggedImageId] = React.useState<string | null>(null);
 
   const handleThumbnailClick = (e: React.MouseEvent, imageId: string) => {
+    // Si estamos arrastrando, no hacer nada
+    if (draggedImageId) return;
+
     if (selectionMode || e.ctrlKey || e.metaKey) {
       if (!selectionMode && !selectedImageIds.has(imageId)) {
         setSelectionMode(true);
@@ -233,6 +237,7 @@ const PhotoPanel: React.FC = () => {
   const setDraggedImageIds = useCalendarStore((s) => s.setDraggedImageIds);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, imageId: string) => {
+    setDraggedImageId(imageId);
     let idsToDrag = [imageId];
     if (selectedImageIds.has(imageId)) {
       idsToDrag = Array.from(selectedImageIds);
@@ -248,6 +253,7 @@ const PhotoPanel: React.FC = () => {
     // (handleOverlayDrop) is responsible for assignment. This handler only
     // cleans up the drag state. Previously, both handleDragEnd AND
     // handleOverlayDrop were assigning, causing double-assignment bugs.
+    setDraggedImageId(null);
     setDraggedImageIds(null);
   };
 
@@ -270,7 +276,7 @@ const PhotoPanel: React.FC = () => {
               <h3 style={{ margin: 0, color: 'var(--color-text-primary)' }}>Fotos Duplicadas Detectadas</h3>
             </div>
             <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', marginBottom: '16px', lineHeight: 1.5 }}>
-              Has intentado subir {duplicateUploadPrompt.duplicates.length} foto{duplicateUploadPrompt.duplicates.length > 1 ? 's' : ''} que ya existe{duplicateUploadPrompt.duplicates.length > 1 ? 'n' : ''} en la galería. ¿Qué deseas hacer?
+              Has intentado subir {duplicateUploadPrompt.duplicates.length} foto{duplicateUploadPrompt.duplicates.length > 1 ? 's' : ''} que ya existe{duplicateUploadPrompt.duplicates.length > 1 ? 'n' : ''}.
             </p>
             <div style={{ maxHeight: 100, overflowY: 'auto', background: 'var(--color-bg-primary)', padding: '8px', borderRadius: '4px', marginBottom: '24px' }}>
               {duplicateUploadPrompt.duplicates.map(d => (
