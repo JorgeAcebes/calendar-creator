@@ -1,6 +1,6 @@
 {
   "name": "calendar-creator-app",
-  "version": "1.0.31",
+  "version": "1.0.35",
   "private": true,
   "description": "Professional calendar creator with print-ready PDF export (300 DPI, CMYK, bleed marks)",
   "author": "Jorge",

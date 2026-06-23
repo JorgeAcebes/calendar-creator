@@ -13,6 +13,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import MaskedImage from './MaskedImage';
 import CalendarGrid from './CalendarGrid';
 import { showToast } from '@/components/layout/Toast';
+import { uploadFiles } from '@/utils/uploadHelpers';
 
 function toCanvasPx(mm: number, scale: number): number {
   return mmToPx(mm, 300) * scale;
@@ -101,9 +102,10 @@ const CalendarCanvas: React.FC = () => {
     // Detect ANY drag entering the document — if it carries our marker data,
     // enable the overlay immediately.
     const onDocDragEnter = (e: DragEvent) => {
-      // Check if this drag comes from our gallery (has our data types)
+      // Check if this drag comes from our gallery or if it's a file from the OS
       if (e.dataTransfer?.types.includes('text/plain') ||
-          e.dataTransfer?.types.includes('application/json')) {
+          e.dataTransfer?.types.includes('application/json') ||
+          e.dataTransfer?.types.includes('Files')) {
         enableOverlay();
       }
     };
@@ -242,7 +244,7 @@ const CalendarCanvas: React.FC = () => {
     }
   };
 
-  const handleOverlayDrop = (e: React.DragEvent) => {
+  const handleOverlayDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -252,7 +254,16 @@ const CalendarCanvas: React.FC = () => {
 
       let imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
 
-      if (imageIds.length === 0) {
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        // Upload external files directly dropped on the canvas
+        const filesData = Array.from(e.dataTransfer.files).map(f => ({
+          name: f.name,
+          size: f.size,
+          type: f.type,
+          arrayBuffer: () => f.arrayBuffer()
+        }));
+        imageIds = await uploadFiles(filesData);
+      } else if (imageIds.length === 0) {
         if (payloadJson) {
           try { imageIds = JSON.parse(payloadJson); } catch (_) {}
         } else if (payloadText && payloadText !== 'gallery-image') {

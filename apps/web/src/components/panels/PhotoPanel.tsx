@@ -2,14 +2,13 @@
 // PhotoPanel — Image upload & gallery sidebar (flat, no folders)
 // =============================================================================
 
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Trash2, Upload, AlertTriangle, Heart, CheckCircle2, CheckSquare, X, CheckCheck } from 'lucide-react';
-import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
-import type { UploadedImage } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { showToast } from '@/components/layout/Toast';
+import { uploadFiles, type FileData } from '@/utils/uploadHelpers';
 
 // ---------------------------------------------------------------------------
 // Helper: find ALL pages where an image is used
@@ -34,7 +33,6 @@ const PhotoPanel: React.FC = () => {
   const project = useCalendarStore((s) => s.project);
   const images = project.images;
   const pages = project.pages;
-  const addImage = useCalendarStore((s) => s.addImage);
   const removeImage = useCalendarStore((s) => s.removeImage);
   const assignImage = useCalendarStore((s) => s.assignImageToRegion);
   const setWarnOnDuplicatePhotos = useCalendarStore((s) => s.setWarnOnDuplicatePhotos);
@@ -43,137 +41,30 @@ const PhotoPanel: React.FC = () => {
   const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
 
   const [duplicateUploadPrompt, setDuplicateUploadPrompt] = React.useState<{
-    duplicates: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[];
-    newFiles: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[];
+    duplicates: FileData[];
+    newFiles: FileData[];
     resolve: (uploadDuplicates: boolean) => void;
   } | null>(null);
 
-  const performUpload = async (filesToUpload: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
-    for (const file of filesToUpload) {
-      try {
-        const buffer = await file.arrayBuffer();
-        const blob = new Blob([buffer], { type: file.type });
-        const reader = new FileReader();
-        reader.onload = () => {
-          const img = new Image();
-          img.onload = () => {
-            const imageData: UploadedImage = {
-              id: uuidv4(),
-              originalFilename: file.name,
-              storagePath: '',
-              thumbnailPath: '',
-              previewDataUrl: reader.result as string,
-              widthPx: img.naturalWidth,
-              heightPx: img.naturalHeight,
-              fileSizeBytes: file.size,
-              mimeType: file.type as UploadedImage['mimeType'],
-              folder: 'Sin clasificar',
-            };
-            addImage(imageData);
-          };
-          img.src = reader.result as string;
-        };
-        reader.readAsDataURL(blob);
-      } catch(err) {
-        console.error("Error processing file", err);
-      }
-    }
-  };
-
-  const processFiles = useCallback(async (filesData: { name: string, size: number, type: string, arrayBuffer: () => Promise<ArrayBuffer> }[]) => {
-    const currentImages = Object.values(useCalendarStore.getState().project.images);
-    const warnOnDuplicate = useCalendarStore.getState().project.globalSettings.warnOnDuplicatePhotos !== false;
-
-    const duplicates: typeof filesData = [];
-    const newFiles: typeof filesData = [];
-
-    for (const file of filesData) {
-      if (warnOnDuplicate) {
-        const existsInStore = currentImages.some((img: any) => img.originalFilename === file.name && img.fileSizeBytes === file.size);
-        const existsInBatch = newFiles.some(f => f.name === file.name && f.size === file.size) || duplicates.some(f => f.name === file.name && f.size === file.size);
-        
-        if (existsInStore || existsInBatch) {
-          if (!duplicates.some(f => f.name === file.name && f.size === file.size)) {
-             duplicates.push(file);
-          }
-          continue;
-        }
-      }
-      newFiles.push(file);
-    }
-
-    const filesToUpload = [...newFiles];
-
-    if (duplicates.length > 0) {
-      const uploadDuplicates = await new Promise<boolean>((resolve) => {
-        setDuplicateUploadPrompt({ duplicates, newFiles, resolve });
-      });
-      setDuplicateUploadPrompt(null);
-      if (uploadDuplicates) {
-        filesToUpload.push(...duplicates);
-      }
-    }
-
-    await performUpload(filesToUpload);
-  }, [addImage]);
-
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      processFiles(acceptedFiles.map(f => ({
+    async (acceptedFiles: File[]) => {
+      const filesData = acceptedFiles.map(f => ({
         name: f.name,
         size: f.size,
         type: f.type,
         arrayBuffer: () => f.arrayBuffer()
-      })));
-    },
-    [processFiles],
-  );
+      }));
 
-  useEffect(() => {
-    if ((window as any).__TAURI_INTERNALS__) {
-      import('@tauri-apps/api/webviewWindow').then(({ getCurrentWebviewWindow }) => {
-        const unlistenPromise = getCurrentWebviewWindow().onDragDropEvent(async (event) => {
-          if (event.payload.type === 'drop') {
-            const paths = event.payload.paths;
-            const { readFile } = await import('@tauri-apps/plugin-fs');
-            
-            const filesData = [];
-            for (const path of paths) {
-              const name = path.split(/[\/\\]/).pop() || 'image';
-              const ext = name.split('.').pop()?.toLowerCase();
-              if (!['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) continue;
-              
-              let type = 'image/jpeg';
-              if (ext === 'png') type = 'image/png';
-              if (ext === 'webp') type = 'image/webp';
-              
-              try {
-                const bytes = await readFile(path);
-                filesData.push({
-                  name,
-                  size: bytes.length,
-                  type,
-                  arrayBuffer: async () => bytes.buffer as ArrayBuffer
-                });
-              } catch(err) {
-                console.error("Failed to read dropped file", err);
-              }
-            }
-            if (filesData.length > 0) {
-              processFiles(filesData);
-            }
-          }
+      await uploadFiles(filesData, (duplicates, newFiles) => {
+        return new Promise<boolean>((resolve) => {
+          setDuplicateUploadPrompt({ duplicates, newFiles, resolve });
         });
-        
-        return () => {
-          unlistenPromise.then(unlisten => unlisten());
-        };
+      }).finally(() => {
+        setDuplicateUploadPrompt(null);
       });
-    }
-  }, [processFiles]);
-
-  // In Tauri, disable react-dropzone drag to prevent double-processing with onDragDropEvent
-  const isTauri = !!(window as any).__TAURI_INTERNALS__;
+    },
+    []
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -183,7 +74,7 @@ const PhotoPanel: React.FC = () => {
       'image/webp': ['.webp'],
     },
     multiple: true,
-    noDrag: isTauri,
+    noDrag: false,
   });
 
   const imageList = Object.values(images) as any[];
@@ -246,13 +137,14 @@ const PhotoPanel: React.FC = () => {
     e.dataTransfer.setData('text/plain', idsToDrag.join(','));
     e.dataTransfer.setData('application/json', JSON.stringify(idsToDrag));
     e.dataTransfer.effectAllowed = 'copy';
+    
+    // Configurar imagen fantasma (ghost) transparente
+    const ghostImg = new Image();
+    ghostImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // transparent pixel
+    e.dataTransfer.setDragImage(ghostImg, 0, 0);
   };
 
   const handleDragEnd = () => {
-    // IMPORTANT: Do NOT assign images here. The drop handler in CalendarCanvas
-    // (handleOverlayDrop) is responsible for assignment. This handler only
-    // cleans up the drag state. Previously, both handleDragEnd AND
-    // handleOverlayDrop were assigning, causing double-assignment bugs.
     setDraggedImageId(null);
     setDraggedImageIds(null);
   };
