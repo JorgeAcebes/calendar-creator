@@ -5,7 +5,7 @@
 // calendar grid, and cover text. All in a multi-layer Konva Stage.
 // =============================================================================
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Line, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import { mmToPx } from '@calendar-creator/shared-types';
@@ -61,6 +61,74 @@ const CalendarCanvas: React.FC = () => {
   const draggedImageIds = useCalendarStore((s) => s.editor.draggedImageIds);
   const lastDistRef = useRef<number>(0);
   const overlayRef = useRef<HTMLDivElement>(null);
+
+  // ---- Synchronous drag activation via document-level listeners ----
+  // We need the overlay enabled BEFORE React re-renders. The Zustand store
+  // update from PhotoPanel.handleDragStart is async, so `isDraggingFromGallery`
+  // is still false when the first dragenter fires on the canvas. We solve
+  // this by:
+  //   1) Detecting drag activity at the document level (synchronous callback)
+  //   2) Directly mutating the overlay DOM element's style.pointerEvents
+  //   3) Tracking with a ref so React's render path stays consistent
+  const htmlDragActiveRef = useRef(false);
+  const [htmlDragActive, setHtmlDragActive] = useState(false);
+
+  const enableOverlay = useCallback(() => {
+    if (!htmlDragActiveRef.current) {
+      htmlDragActiveRef.current = true;
+      setHtmlDragActive(true);
+      // Directly mutate the overlay element for immediate effect
+      if (overlayRef.current) {
+        overlayRef.current.style.pointerEvents = 'all';
+        overlayRef.current.style.zIndex = '10';
+      }
+    }
+  }, []);
+
+  const disableOverlay = useCallback(() => {
+    if (htmlDragActiveRef.current) {
+      htmlDragActiveRef.current = false;
+      setHtmlDragActive(false);
+      if (overlayRef.current) {
+        overlayRef.current.style.pointerEvents = 'none';
+        overlayRef.current.style.zIndex = '-1';
+      }
+      setDragOverRegionId(null);
+    }
+  }, [setDragOverRegionId]);
+
+  useEffect(() => {
+    // Detect ANY drag entering the document — if it carries our marker data,
+    // enable the overlay immediately.
+    const onDocDragEnter = (e: DragEvent) => {
+      // Check if this drag comes from our gallery (has our data types)
+      if (e.dataTransfer?.types.includes('text/plain') ||
+          e.dataTransfer?.types.includes('application/json')) {
+        enableOverlay();
+      }
+    };
+
+    const onDocDragEnd = () => {
+      disableOverlay();
+    };
+
+    const onDocDrop = () => {
+      // The overlay's own onDrop handles assignment;
+      // this document-level handler just cleans up if the drop lands outside.
+      // Use a tiny delay to let the overlay's handler fire first.
+      setTimeout(() => disableOverlay(), 50);
+    };
+
+    document.addEventListener('dragenter', onDocDragEnter, true);
+    document.addEventListener('dragend', onDocDragEnd, true);
+    document.addEventListener('drop', onDocDrop, true);
+
+    return () => {
+      document.removeEventListener('dragenter', onDocDragEnter, true);
+      document.removeEventListener('dragend', onDocDragEnd, true);
+      document.removeEventListener('drop', onDocDrop, true);
+    };
+  }, [enableOverlay, disableOverlay]);
 
   // Safe area (5mm from trim on each side)
   const safeMargin = toCanvasPx(5, canvasScale);
@@ -255,11 +323,13 @@ const CalendarCanvas: React.FC = () => {
       setDragOverRegionId(null);
       // Clean up dragged image IDs from store
       useCalendarStore.getState().setDraggedImageIds(null);
+      disableOverlay();
     }
   };
 
-  // Whether a gallery drag is currently in progress
-  const isDraggingFromGallery = !!draggedImageIds && draggedImageIds.length > 0;
+  // Whether a gallery drag is currently in progress — combine both the
+  // synchronous ref-based flag and the async Zustand state for robustness.
+  const isDraggingFromGallery = htmlDragActive || (!!draggedImageIds && draggedImageIds.length > 0);
 
   return (
     <div
@@ -502,7 +572,10 @@ const CalendarCanvas: React.FC = () => {
       </Stage>
 
       {/* HTML overlay for drag-and-drop — sits on top of the Konva canvas.
-          Only captures pointer events when a gallery drag is in progress. */}
+          Starts with pointer-events:none; the document-level dragenter listener
+          enables it synchronously via direct DOM mutation before React re-renders.
+          The `style` below is the React-managed fallback; the ref-based direct
+          mutation in enableOverlay/disableOverlay takes precedence. */}
       <div
         ref={overlayRef}
         style={{
@@ -515,7 +588,12 @@ const CalendarCanvas: React.FC = () => {
           zIndex: isDraggingFromGallery ? 10 : -1,
         }}
         onDragOver={handleOverlayDragOver}
-        onDragEnter={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+          // Also enable overlay here as a secondary guard
+          enableOverlay();
+        }}
         onDragLeave={handleOverlayDragLeave}
         onDrop={handleOverlayDrop}
       >
