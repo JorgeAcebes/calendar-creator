@@ -299,7 +299,6 @@ const Dashboard: React.FC = () => {
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const navigate = useNavigate();
   const initProject = useCalendarStore(state => state.initProject);
-  const isTauri = !!(window as any).__TAURI_INTERNALS__;
 
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('Nuevo Calendario');
@@ -310,36 +309,31 @@ const Dashboard: React.FC = () => {
   const loadProjects = async () => {
     setLoading(true);
     try {
-      if (isTauri) {
-        const { readDir, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        try {
-          const entries = await readDir('projects', { baseDir: BaseDirectory.AppData });
-          const loadedProjects: ProjectListItem[] = [];
-          for (const entry of entries) {
-            if (entry.name && entry.name.endsWith('.json')) {
-              try {
-                const data = await readTextFile(`projects/${entry.name}`, { baseDir: BaseDirectory.AppData });
-                const proj = JSON.parse(data);
-                loadedProjects.push({
-                  id: proj.id,
-                  name: proj.name,
-                  createdAt: proj.createdAt || new Date().toISOString(),
-                  updatedAt: proj.updatedAt || new Date().toISOString()
-                });
-              } catch (e) {
-                console.error('Error parsing', entry.name, e);
-              }
+      const { readDir, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+      try {
+        const entries = await readDir('projects', { baseDir: BaseDirectory.AppData });
+        const loadedProjects: ProjectListItem[] = [];
+        for (const entry of entries) {
+          if (entry.name && entry.name.endsWith('.json')) {
+            try {
+              const data = await readTextFile(`projects/${entry.name}`, { baseDir: BaseDirectory.AppData });
+              const proj = JSON.parse(data);
+              loadedProjects.push({
+                id: proj.id,
+                name: proj.name,
+                createdAt: proj.createdAt || new Date().toISOString(),
+                updatedAt: proj.updatedAt || new Date().toISOString()
+              });
+            } catch (e) {
+              console.error('Error parsing', entry.name, e);
             }
           }
-          loadedProjects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-          setProjects(loadedProjects);
-        } catch (e) {
-          console.error('No appdata dir found or error reading', e);
-          setProjects([]);
         }
-      } else {
-        const res = await fetch('/api/projects');
-        if (res.ok) setProjects(await res.json());
+        loadedProjects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+        setProjects(loadedProjects);
+      } catch (e) {
+        console.error('No appdata dir found or error reading', e);
+        setProjects([]);
       }
     } catch (e) {
       console.error('Failed to load projects', e);
@@ -352,23 +346,10 @@ const Dashboard: React.FC = () => {
     initProject(newProjectName, newProjectYear, 'es-ES');
     const newProject = useCalendarStore.getState().project;
     try {
-      if (isTauri) {
-        const { writeTextFile, BaseDirectory, mkdir } = await import('@tauri-apps/plugin-fs');
-        try { await mkdir('projects', { baseDir: BaseDirectory.AppData, recursive: true }); } catch (e) {}
-        await writeTextFile(`projects/${newProject.id}.json`, JSON.stringify(newProject), { baseDir: BaseDirectory.AppData });
-        navigate(`/editor/${newProject.id}`);
-      } else {
-        const res = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: newProject.name, data: JSON.stringify(newProject) }),
-        });
-        if (res.ok) {
-          navigate(`/editor/${newProject.id}`);
-        } else {
-          throw new Error('Server error');
-        }
-      }
+      const { writeTextFile, BaseDirectory, mkdir } = await import('@tauri-apps/plugin-fs');
+      try { await mkdir('projects', { baseDir: BaseDirectory.AppData, recursive: true }); } catch (e) {}
+      await writeTextFile(`projects/${newProject.id}.json`, JSON.stringify(newProject), { baseDir: BaseDirectory.AppData });
+      navigate(`/editor/${newProject.id}`);
     } catch (e: any) {
       console.error(e);
       alert('Error al guardar el nuevo proyecto: ' + (e.message || e));
@@ -381,41 +362,22 @@ const Dashboard: React.FC = () => {
     e.stopPropagation();
     if (!confirm('¿Seguro que deseas eliminar este proyecto de forma permanente?')) return;
     try {
-      if (isTauri) {
-        const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        await remove(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
-        loadProjects();
-      } else {
-        await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-        loadProjects();
-      }
+      const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+      await remove(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
+      loadProjects();
     } catch (e) { console.error(e); }
   };
 
   const handleDuplicateProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      if (isTauri) {
-        const { readTextFile, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-        const data = await readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
-        const parsedData: CalendarProject = JSON.parse(data);
-        parsedData.name = `${parsedData.name} (Copia)`;
-        parsedData.id = crypto.randomUUID();
-        await writeTextFile(`projects/${parsedData.id}.json`, JSON.stringify(parsedData), { baseDir: BaseDirectory.AppData });
-        loadProjects();
-      } else {
-        const res = await fetch(`/api/projects/${id}`);
-        const project = await res.json();
-        const parsedData: CalendarProject = JSON.parse(project.data);
-        parsedData.name = `${parsedData.name} (Copia)`;
-        parsedData.id = crypto.randomUUID();
-        const saveRes = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: parsedData.name, data: JSON.stringify(parsedData) }),
-        });
-        if (saveRes.ok) loadProjects();
-      }
+      const { readTextFile, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
+      const data = await readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
+      const parsedData: CalendarProject = JSON.parse(data);
+      parsedData.name = `${parsedData.name} (Copia)`;
+      parsedData.id = crypto.randomUUID();
+      await writeTextFile(`projects/${parsedData.id}.json`, JSON.stringify(parsedData), { baseDir: BaseDirectory.AppData });
+      loadProjects();
     } catch (e) { console.error(e); }
   };
 

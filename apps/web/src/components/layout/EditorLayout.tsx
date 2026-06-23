@@ -30,90 +30,47 @@ const EditorLayout: React.FC = () => {
   const [loading, setLoading] = useState(id !== 'new');
   const [panelWidth, setPanelWidth] = useState(320); // default width
 
+  // Load project from Tauri AppData
   useEffect(() => {
     if (id && id !== 'new') {
-      if ((window as any).__TAURI_INTERNALS__) {
-        import('@tauri-apps/plugin-fs').then(({ readTextFile, BaseDirectory }) => {
-          readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData })
-            .then(data => {
-              const parsedData: CalendarProject = JSON.parse(data);
-              loadProject(parsedData);
-              setLoading(false);
-            })
-            .catch(() => {
-              alert('Error al cargar el proyecto local desde Tauri.');
-              navigate('/');
-            });
-        }).catch(console.error);
-        return;
-      }
-
-      fetch(`/api/projects/${id}`)
-        .then(r => {
-          if (!r.ok) throw new Error('Not found');
-          return r.json();
-        })
-        .then(data => {
-          const parsedData: CalendarProject = JSON.parse(data.data);
-          loadProject(parsedData);
-          setLoading(false);
-        })
-        .catch(() => {
-          alert('Error al cargar el proyecto.');
-          navigate('/');
-        });
+      import('@tauri-apps/plugin-fs').then(({ readTextFile, BaseDirectory }) => {
+        readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData })
+          .then(data => {
+            const parsedData: CalendarProject = JSON.parse(data);
+            loadProject(parsedData);
+            setLoading(false);
+          })
+          .catch(() => {
+            alert('Error al cargar el proyecto.');
+            navigate('/');
+          });
+      }).catch(console.error);
     } else {
       setLoading(false);
     }
   }, [id, loadProject, navigate]);
 
-  // Synchronous flush save function
+  // Save project to Tauri AppData
   const saveProject = (proj: CalendarProject) => {
     if (!proj.id || loading || id === 'new') return;
-    
-    if ((window as any).__TAURI_INTERNALS__) {
-      import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-        writeTextFile(`projects/${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
-      });
-      return;
-    }
-
-    const data = JSON.stringify({ name: proj.name, data: JSON.stringify(proj) });
-    // Use sendBeacon for reliable unmount saving if possible, or fallback to fetch
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(`/api/projects/${proj.id}`, new Blob([data], { type: 'application/json' }));
-    } else {
-      fetch(`/api/projects/${proj.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: data,
-        keepalive: true
-      }).catch(console.error);
-    }
+    import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
+      writeTextFile(`projects/${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
+    });
   };
 
   // Auto-save logic (debounced)
   useEffect(() => {
     if (loading || !project.id || id === 'new') return;
     const timeoutId = setTimeout(() => {
-      if ((window as any).__TAURI_INTERNALS__) {
-        import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-          writeTextFile(`projects/${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
-        });
-        return;
-      }
-
-      fetch(`/api/projects/${project.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: project.name, data: JSON.stringify(project) })
-      }).catch(console.error);
+      import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
+        writeTextFile(`projects/${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
+      });
     }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [project, loading, id]);
 
-  // Force save on unmount or tab close
+  // Force save on unmount or window close
   useEffect(() => {
     const handleBeforeUnload = () => saveProject(project);
     window.addEventListener('beforeunload', handleBeforeUnload);

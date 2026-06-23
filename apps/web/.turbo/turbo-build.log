@@ -7,18 +7,18 @@ rendering chunks...
 computing gzip size...
 [2mdist/[22m[32mindex.html                          [39m[1m[2m    1.23 kB[22m[1m[22m[2m │ gzip:   0.57 kB[22m
 [2mdist/[22m[35massets/index-B1pqQSHq.css           [39m[1m[2m   16.15 kB[22m[1m[22m[2m │ gzip:   3.84 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
 [2mdist/[22m[36massets/index-apQTXpfJ.js            [39m[1m[2m    0.13 kB[22m[1m[22m[2m │ gzip:   0.14 kB[22m
 [2mdist/[22m[36massets/index-NsrznfmA.js            [39m[1m[2m    1.44 kB[22m[1m[22m[2m │ gzip:   0.49 kB[22m
 [2mdist/[22m[36massets/core-Cn4yfEqx.js             [39m[1m[2m    1.61 kB[22m[1m[22m[2m │ gzip:   0.71 kB[22m
 [2mdist/[22m[36massets/index-DvLRj1zR.js            [39m[1m[2m    7.45 kB[22m[1m[22m[2m │ gzip:   1.98 kB[22m
 [2mdist/[22m[36massets/webviewWindow-o6KiLSin.js    [39m[1m[2m   19.01 kB[22m[1m[22m[2m │ gzip:   4.14 kB[22m
 [2mdist/[22m[36massets/purify.es-BSKMTLSQ.js        [39m[1m[2m   26.41 kB[22m[1m[22m[2m │ gzip:   9.94 kB[22m
-[2mdist/[22m[36massets/index.es-D75GmRPn.js         [39m[1m[2m  159.60 kB[22m[1m[22m[2m │ gzip:  53.51 kB[22m
+[2mdist/[22m[36massets/index.es-CH6wxAwF.js         [39m[1m[2m  159.60 kB[22m[1m[22m[2m │ gzip:  53.52 kB[22m
 [2mdist/[22m[36massets/html2canvas.esm-QH1iLAAe.js  [39m[1m[2m  202.38 kB[22m[1m[22m[2m │ gzip:  48.04 kB[22m
-[2mdist/[22m[36massets/index-dWwyPiae.js            [39m[1m[33m1,324.98 kB[39m[22m[2m │ gzip: 402.84 kB[22m
-[33m
-(!) Some chunks are larger than 500 kB after minification. Consider:
+[2mdist/[22m[36massets/index-D7kFm4y3.js            [39m[1m[33m1,324.38 kB[39m[22m[2m │ gzip: 402.53 kB[22m
+[32m✓ built in 48.70s[39m
 - Using dynamic import() to code-split the application
 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
-[32m✓ built in 17.45s[39m

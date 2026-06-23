@@ -35,8 +35,6 @@ jobs:
       - name: install dependencies
         run: pnpm install
 
-      - name: generate prisma client
-        run: pnpm --filter @calendar-creator/api exec prisma generate
 
       - name: build workspace
         run: pnpm run build --force
