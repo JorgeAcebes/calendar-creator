@@ -14,6 +14,17 @@ const FONT_OPTIONS = [
   'Lora', 'Poppins', 'Raleway', 'Source Sans 3', 'DM Sans',
 ];
 
+function toValidHex(color: string | undefined, defaultColor = '#000000'): string {
+  if (!color) return defaultColor;
+  let c = color.trim();
+  if (!c.startsWith('#')) c = '#' + c;
+  if (/^#[0-9A-Fa-f]{6}$/.test(c)) return c;
+  if (/^#[0-9A-Fa-f]{3}$/.test(c)) {
+    return `#${c[1]}${c[1]}${c[2]}${c[2]}${c[3]}${c[3]}`;
+  }
+  return defaultColor;
+}
+
 const AnnotationPanel: React.FC = () => {
   const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
   const selectedDayStore = useCalendarStore((s) => s.editor.selectedDayForAnnotation);
@@ -32,12 +43,12 @@ const AnnotationPanel: React.FC = () => {
   const globalHolidayTextPos = useCalendarStore((s) => s.project.globalSettings.holidayTextPosition ?? 'bottom');
   const globalHolidayFillBg = useCalendarStore((s) => s.project.globalSettings.holidayFillBackground ?? false);
   const globalHolidayBgColor = useCalendarStore((s) => s.project.globalSettings.holidayBackgroundColor ?? '#ffebee');
-  const globalHolidayColor = useCalendarStore((s) => s.project.globalSettings.holidayColor ?? '#ff453a');
+  const globalHolidayColor = useCalendarStore((s) => s.project.globalSettings.holidayColor ?? '#000000');
 
   const [selectedDay, setSelectedDay] = useState<number>(selectedDayStore || 1);
   const [text, setText] = useState('');
   const [icon, setIcon] = useState('');
-  const [color, setColor] = useState('#E63946');
+  const [color, setColor] = useState('#000000');
   const [fontSizePt, setFontSizePt] = useState(7);
   const [fontFamily, setFontFamily] = useState('Inter');
   const [annTextPos, setAnnTextPos] = useState<'top' | 'middle' | 'bottom'>('bottom');
@@ -82,17 +93,18 @@ const AnnotationPanel: React.FC = () => {
   // When selectedDay changes or annotation updates, sync form inputs
   useEffect(() => {
     if (existingAnnotation) {
-      setText(existingAnnotation.text || '');
-      setColor(existingAnnotation.color || '#E63946');
+      setText(existingAnnotation.text ? existingAnnotation.text.replace(/^🔴\s*/, '') : '');
+      setColor(existingAnnotation.color || (existingAnnotation.isHoliday ? globalHolidayColor : '#000000'));
       setFontSizePt(existingAnnotation.fontSizePt || 7);
       setFontFamily(existingAnnotation.fontFamily || 'Inter');
-      setIcon(existingAnnotation.icon || '');
+      setIcon(existingAnnotation.isHoliday ? '' : (existingAnnotation.icon || ''));
       setAnnTextPos(existingAnnotation.textPosition || (existingAnnotation.isHoliday ? globalHolidayTextPos : 'bottom'));
       setAnnFillBg(existingAnnotation.fillBackground ?? (existingAnnotation.isHoliday ? globalHolidayFillBg : false));
       setAnnBgColor(existingAnnotation.backgroundColor || (existingAnnotation.isHoliday ? globalHolidayBgColor : '#ffebee'));
     } else {
       setText('');
       setIcon('');
+      setColor('#000000');
       setAnnTextPos('bottom');
       setAnnFillBg(false);
       setAnnBgColor('#ffebee');
@@ -200,8 +212,9 @@ const AnnotationPanel: React.FC = () => {
               onChange={(e) => {
                 const checked = e.target.checked;
                 setIncludeNational(checked);
+                const currentHolidayColor = applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor);
                 if (checked || selectedProvince) {
-                  applySpanishHolidays(checked, selectedProvince || undefined);
+                  applySpanishHolidays(checked, selectedProvince || undefined, currentHolidayColor);
                   showToast({
                     type: 'success',
                     message: checked ? 'Festivos nacionales marcados en todo el calendario' : 'Festivos nacionales desactivados',
@@ -227,7 +240,8 @@ const AnnotationPanel: React.FC = () => {
               onChange={(e) => {
                 const provId = e.target.value;
                 setSelectedProvince(provId);
-                applySpanishHolidays(includeNational, provId || undefined);
+                const currentHolidayColor = applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor);
+                applySpanishHolidays(includeNational, provId || undefined, currentHolidayColor);
                 const provName = SPANISH_PROVINCES.find((p) => p.id === provId)?.name;
                 showToast({
                   type: 'success',
@@ -263,57 +277,78 @@ const AnnotationPanel: React.FC = () => {
               </label>
               <div style={{
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
+                flexDirection: 'column',
+                gap: '8px',
                 background: 'rgba(0, 0, 0, 0.2)',
                 border: '1px solid rgba(255, 69, 58, 0.25)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '6px 10px',
+                padding: '8px 10px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <input
                     type="color"
                     className="input-color"
+                    value={toValidHex(applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor))}
+                    onChange={(e) => setHolidayStyle({ holidayColor: e.target.value }, applyHolidayGlobally, activePageIndex)}
+                    style={{ width: 28, height: 26, borderRadius: 4, cursor: 'pointer', flexShrink: 0 }}
+                    title="Elegir color personalizado"
+                  />
+                  <input
+                    type="text"
+                    className="input input--sm"
+                    placeholder="#000000"
                     value={applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor)}
                     onChange={(e) => setHolidayStyle({ holidayColor: e.target.value }, applyHolidayGlobally, activePageIndex)}
-                    style={{ width: 28, height: 24, borderRadius: 4, cursor: 'pointer' }}
+                    onBlur={(e) => {
+                      let val = e.target.value.trim();
+                      if (val && !val.startsWith('#')) val = '#' + val;
+                      if (/^#[0-9A-Fa-f]{3,8}$/.test(val)) {
+                        setHolidayStyle({ holidayColor: val }, applyHolidayGlobally, activePageIndex);
+                      }
+                    }}
+                    style={{
+                      width: '85px',
+                      padding: '2px 6px',
+                      fontSize: '11px',
+                      fontVariantNumeric: 'tabular-nums',
+                      fontFamily: 'monospace',
+                    }}
                   />
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                    {(applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor)).toUpperCase()}
-                  </span>
-                </div>
 
-                {/* Preset swatches */}
-                <div style={{ display: 'flex', gap: 5 }}>
-                  {[
-                    { hex: '#ff453a', name: 'Rojo vibrante' },
-                    { hex: '#e63946', name: 'Carmesí' },
-                    { hex: '#b91c1c', name: 'Granate' },
-                    { hex: '#d97706', name: 'Ámbar' },
-                    { hex: '#3b82f6', name: 'Azul' },
-                    { hex: '#10b981', name: 'Verde' },
-                    { hex: '#8b5cf6', name: 'Púrpura' },
-                  ].map((swatch) => {
-                    const currentColor = applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor);
-                    const isSelected = currentColor.toLowerCase() === swatch.hex.toLowerCase();
-                    return (
-                      <button
-                        key={swatch.hex}
-                        type="button"
-                        onClick={() => setHolidayStyle({ holidayColor: swatch.hex }, applyHolidayGlobally, activePageIndex)}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: 4,
-                          background: swatch.hex,
-                          border: isSelected ? '2px solid white' : '1px solid rgba(255,255,255,0.2)',
-                          cursor: 'pointer',
-                          padding: 0,
-                        }}
-                        title={swatch.name}
-                      />
-                    );
-                  })}
+                  {/* Preset swatches */}
+                  <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {[
+                      { hex: '#000000', name: 'Negro (Por defecto)' },
+                      { hex: '#1A1A2E', name: 'Azul marino oscuro' },
+                      { hex: '#ff453a', name: 'Rojo vibrante' },
+                      { hex: '#e63946', name: 'Carmesí' },
+                      { hex: '#b91c1c', name: 'Granate' },
+                      { hex: '#d97706', name: 'Ámbar' },
+                      { hex: '#2563eb', name: 'Azul' },
+                      { hex: '#059669', name: 'Verde' },
+                      { hex: '#7c3aed', name: 'Púrpura' },
+                    ].map((swatch) => {
+                      const currentColor = applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor);
+                      const isSelected = currentColor.toLowerCase() === swatch.hex.toLowerCase();
+                      return (
+                        <button
+                          key={swatch.hex}
+                          type="button"
+                          onClick={() => setHolidayStyle({ holidayColor: swatch.hex }, applyHolidayGlobally, activePageIndex)}
+                          style={{
+                            width: 18,
+                            height: 18,
+                            borderRadius: 4,
+                            background: swatch.hex,
+                            border: isSelected ? '2px solid white' : '1px solid rgba(255,255,255,0.25)',
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                          title={swatch.name}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -477,13 +512,30 @@ const AnnotationPanel: React.FC = () => {
                 <input
                   type="color"
                   className="input-color"
+                  value={toValidHex(color)}
+                  onChange={(e) => setColor(e.target.value)}
+                  style={{ width: 28, height: 26, borderRadius: 4, cursor: 'pointer', flexShrink: 0 }}
+                />
+                <input
+                  type="text"
+                  className="input input--sm"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
-                  style={{ width: 28, height: 26, borderRadius: 4, cursor: 'pointer' }}
+                  onBlur={(e) => {
+                    let val = e.target.value.trim();
+                    if (val && !val.startsWith('#')) val = '#' + val;
+                    if (/^#[0-9A-Fa-f]{3,8}$/.test(val)) {
+                      setColor(val);
+                    }
+                  }}
+                  style={{
+                    width: '80px',
+                    padding: '2px 6px',
+                    fontSize: '11px',
+                    fontVariantNumeric: 'tabular-nums',
+                    fontFamily: 'monospace',
+                  }}
                 />
-                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                  {color.toUpperCase()}
-                </span>
               </div>
             </div>
           </div>
@@ -574,13 +626,30 @@ const AnnotationPanel: React.FC = () => {
                 <input
                   type="color"
                   className="input-color"
+                  value={toValidHex(annBgColor, '#ffebee')}
+                  onChange={(e) => setAnnBgColor(e.target.value)}
+                  style={{ width: '28px', height: '24px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)', flexShrink: 0 }}
+                />
+                <input
+                  type="text"
+                  className="input input--sm"
                   value={annBgColor}
                   onChange={(e) => setAnnBgColor(e.target.value)}
-                  style={{ width: '28px', height: '24px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)' }}
+                  onBlur={(e) => {
+                    let val = e.target.value.trim();
+                    if (val && !val.startsWith('#')) val = '#' + val;
+                    if (/^#[0-9A-Fa-f]{3,8}$/.test(val)) {
+                      setAnnBgColor(val);
+                    }
+                  }}
+                  style={{
+                    width: '80px',
+                    padding: '2px 6px',
+                    fontSize: '11px',
+                    fontVariantNumeric: 'tabular-nums',
+                    fontFamily: 'monospace',
+                  }}
                 />
-                <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
-                  {annBgColor.toUpperCase()}
-                </span>
               </div>
             )}
           </div>
@@ -697,7 +766,7 @@ const AnnotationPanel: React.FC = () => {
                         setSelectedDayStore(Number(ann.day));
                       }}
                     >
-                      {ann.icon ? `${ann.icon} ` : ''}{ann.text}
+                      {(!ann.isHoliday && ann.icon && ann.icon !== '🔴') ? `${ann.icon} ` : ''}{ann.text.replace(/^🔴\s*/, '')}
                       {ann.isHoliday && (
                         <span style={{ fontSize: '10px', marginLeft: 6, opacity: 0.65, fontStyle: 'italic' }}>
                           ({ann.holidayType === 'national' ? 'festivo nacional' : 'festivo provincial'})

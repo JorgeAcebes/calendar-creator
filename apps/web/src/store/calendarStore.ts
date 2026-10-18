@@ -247,7 +247,7 @@ function createDefaultSettings(): GlobalSettings {
     holidayTextPosition: 'bottom',
     holidayFillBackground: false,
     holidayBackgroundColor: '#ffebee',
-    holidayColor: '#ff453a',
+    holidayColor: '#000000',
   };
 }
 
@@ -321,7 +321,7 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
             holidayTextPosition: 'bottom',
             holidayFillBackground: false,
             holidayBackgroundColor: '#ffebee',
-            holidayColor: '#ff453a',
+            holidayColor: '#000000',
             annotations: [],
           }
         : null,
@@ -814,7 +814,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
           const year = state.project.year;
           state.project.globalSettings.includeNationalHolidays = includeNational;
           state.project.globalSettings.holidayProvince = provinceId;
-          const activeHolidayColor = holidayColor ?? state.project.globalSettings.holidayColor ?? '#ff453a';
+          const activeHolidayColor = holidayColor ?? state.project.globalSettings.holidayColor ?? '#000000';
           state.project.globalSettings.holidayColor = activeHolidayColor;
 
           const allHolidays = getAllHolidaysForYear(year, includeNational, provinceId);
@@ -832,11 +832,11 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
                 const existingIndex = grid.annotations.findIndex((a: any) => Number(a.day) === h.day);
                 const holidayAnnotation: DayAnnotation = {
                   day: h.day,
-                  text: h.name,
+                  text: h.name.replace(/^🔴\s*/, ''),
                   color: activeHolidayColor,
                   fontSizePt: 7,
                   fontFamily: 'Inter',
-                  icon: '🔴',
+                  icon: undefined,
                   isHoliday: true,
                   holidayType: h.type,
                 };
@@ -844,6 +844,8 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
                   grid.annotations[existingIndex].isHoliday = true;
                   grid.annotations[existingIndex].holidayType = h.type;
                   grid.annotations[existingIndex].color = activeHolidayColor;
+                  grid.annotations[existingIndex].icon = undefined;
+                  grid.annotations[existingIndex].text = h.name.replace(/^🔴\s*/, '');
                 } else {
                   grid.annotations.push(holidayAnnotation);
                 }
