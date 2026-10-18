@@ -144,22 +144,29 @@ const AnnotationPanel: React.FC = () => {
   };
 
   return (
-    <div className="panel-section">
-      <div className="panel-section__header">
-        <span className="panel-section__title">
-          <MessageSquarePlus size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+    <div className="panel-section" style={{ padding: '16px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '14px',
+        paddingBottom: '10px',
+        borderBottom: '1px solid var(--color-glass-border)',
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <MessageSquarePlus size={13} color="#ff453a" />
           Notas y Festivos
         </span>
-        <span className="badge">{annotations.length}</span>
+        <span className="badge" style={{ background: 'rgba(255, 69, 58, 0.15)', color: '#ff453a' }}>{annotations.length}</span>
       </div>
 
       {/* SECTION: Festivos Oficiales (España) */}
       <div style={{
-        padding: '12px',
-        marginBottom: 'var(--space-4)',
-        background: 'rgba(255, 69, 58, 0.07)',
-        border: '1px solid rgba(255, 69, 58, 0.25)',
-        borderRadius: 'var(--radius-md)',
+        padding: '14px',
+        marginBottom: '14px',
+        background: 'rgba(255, 69, 58, 0.05)',
+        border: '1px solid rgba(255, 69, 58, 0.22)',
+        borderRadius: 'var(--radius-lg)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
           <span style={{ fontSize: '12px', fontWeight: 700, color: '#ff453a', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -351,196 +358,217 @@ const AnnotationPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* SECTION: Anotaciones Manuales */}
+      {/* SECTION: Anotaciones Manuales Card */}
       <div style={{
-        padding: '8px 12px',
-        marginBottom: 'var(--space-3)',
-        borderRadius: 'var(--radius-sm)',
-        background: existingAnnotation ? 'rgba(10, 132, 255, 0.12)' : 'var(--color-glass)',
-        border: existingAnnotation ? '1px solid rgba(10, 132, 255, 0.3)' : '1px solid var(--color-glass-border)',
-        fontSize: 'var(--text-xs)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        background: 'rgba(255, 255, 255, 0.025)',
+        border: '1px solid rgba(255, 255, 255, 0.07)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px',
+        marginBottom: '14px',
       }}>
-        <span>
-          {existingAnnotation ? (
-            <strong style={{ color: '#0a84ff' }}>Día {selectedDay} (con anotación)</strong>
-          ) : (
-            <span>Editando día <strong>{selectedDay}</strong></span>
-          )}
-        </span>
-        <span style={{ color: 'var(--color-text-tertiary)', fontSize: '11px' }}>
-          Clic en cuadrícula para elegir día
-        </span>
-      </div>
-
-      {/* Form to add or edit annotation */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <div className="panel-section__grid">
-          <div className="input-group">
-            <label className="input-label">Día del mes</label>
-            <input
-              type="number"
-              className="input input--sm input-numeric"
-              min={1}
-              max={maxDays}
-              value={selectedDay}
-              onChange={(e) => {
-                const val = Math.max(1, Math.min(Number(e.target.value) || 1, maxDays));
-                setSelectedDay(val);
-                setSelectedDayStore(val);
-              }}
-            />
-          </div>
-          <div className="input-group">
-            <label className="input-label">Color del texto</label>
-            <input
-              type="color"
-              className="input-color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
-          </div>
+        {/* Active Day Banner */}
+        <div style={{
+          padding: '8px 12px',
+          marginBottom: '12px',
+          borderRadius: 'var(--radius-sm)',
+          background: existingAnnotation ? 'rgba(10, 132, 255, 0.12)' : 'rgba(0, 0, 0, 0.2)',
+          border: existingAnnotation ? '1px solid rgba(10, 132, 255, 0.3)' : '1px solid var(--color-glass-border)',
+          fontSize: 'var(--text-xs)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span>
+            {existingAnnotation ? (
+              <strong style={{ color: '#0a84ff' }}>Día {selectedDay} (con anotación)</strong>
+            ) : (
+              <span>Editando día <strong>{selectedDay}</strong></span>
+            )}
+          </span>
+          <span style={{ color: 'var(--color-text-tertiary)', fontSize: '11px' }}>
+            Clic en cuadrícula para elegir día
+          </span>
         </div>
 
-        <div className="input-group">
-          <label className="input-label">Texto de la anotación</label>
-          <input
-            type="text"
-            className="input input--sm"
-            placeholder="Ej: Cumpleaños de Lucas"
-            maxLength={40}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          />
-        </div>
-
-        {/* Font + Size */}
-        <div className="panel-section__grid">
-          <div className="input-group" style={{ flex: 2 }}>
-            <label className="input-label">Tipografía</label>
-            <select
-              className="input select input--sm"
-              value={fontFamily}
-              onChange={(e) => setFontFamily(e.target.value)}
-            >
-              {FONT_OPTIONS.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-          </div>
-          <div className="input-group" style={{ flex: 1 }}>
-            <label className="input-label">Tamaño</label>
-            <input
-              type="number"
-              className="input input--sm input-numeric"
-              min={4}
-              max={20}
-              value={fontSizePt}
-              onChange={(e) => setFontSizePt(Number(e.target.value))}
-            />
-          </div>
-        </div>
-
-        {/* Text Position for this annotation */}
-        <div>
-          <label className="input-label" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
-            Posición del texto en la casilla
-          </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
-            {(['top', 'middle', 'bottom'] as const).map((pos) => {
-              const label = pos === 'top' ? 'Arriba' : pos === 'middle' ? 'Medio' : 'Abajo';
-              const isSelected = annTextPos === pos;
-              return (
-                <button
-                  key={pos}
-                  type="button"
-                  className={`btn btn--sm ${isSelected ? 'btn--primary' : 'btn--ghost'}`}
-                  style={{
-                    padding: '4px 6px',
-                    fontSize: '11px',
-                    fontWeight: isSelected ? 600 : 400,
-                  }}
-                  onClick={() => setAnnTextPos(pos)}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Fill Background for this annotation */}
-        <div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
-            <input
-              type="checkbox"
-              checked={annFillBg}
-              onChange={(e) => setAnnFillBg(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: '#0a84ff', cursor: 'pointer' }}
-            />
-            <span>Rellenar fondo de la casilla (cuadrado completo)</span>
-          </label>
-
-          {annFillBg && (
-            <div style={{ marginTop: '8px', paddingLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Form to add or edit annotation */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className="panel-section__grid">
+            <div className="input-group">
+              <label className="input-label" style={{ fontSize: '10px' }}>Día del mes</label>
               <input
-                type="color"
-                className="input-color"
-                value={annBgColor}
-                onChange={(e) => setAnnBgColor(e.target.value)}
-                style={{ width: '32px', height: '28px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)' }}
+                type="number"
+                className="input input--sm input-numeric"
+                min={1}
+                max={maxDays}
+                value={selectedDay}
+                onChange={(e) => {
+                  const val = Math.max(1, Math.min(Number(e.target.value) || 1, maxDays));
+                  setSelectedDay(val);
+                  setSelectedDayStore(val);
+                }}
               />
-              <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
-                {annBgColor.toUpperCase()}
-              </span>
             </div>
-          )}
-        </div>
+            <div className="input-group">
+              <label className="input-label" style={{ fontSize: '10px' }}>Color del texto</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  type="color"
+                  className="input-color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  style={{ width: 28, height: 26, borderRadius: 4, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                  {color.toUpperCase()}
+                </span>
+              </div>
+            </div>
+          </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-          <button
-            type="button"
-            className="btn btn--primary btn--sm"
-            onClick={handleSave}
-            disabled={!text.trim()}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-          >
-            {existingAnnotation ? <Check size={14} /> : <MessageSquarePlus size={14} />}
-            <span>{existingAnnotation ? 'Guardar cambios' : 'Añadir anotación'}</span>
-          </button>
+          <div className="input-group">
+            <label className="input-label" style={{ fontSize: '10px' }}>Texto de la anotación</label>
+            <input
+              type="text"
+              className="input input--sm"
+              placeholder="Ej: Cumpleaños de Lucas"
+              maxLength={40}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+            />
+          </div>
 
-          {existingAnnotation && (
+          {/* Font + Size */}
+          <div className="panel-section__grid">
+            <div className="input-group" style={{ flex: 2 }}>
+              <label className="input-label" style={{ fontSize: '10px' }}>Tipografía</label>
+              <select
+                className="input select input--sm"
+                value={fontFamily}
+                onChange={(e) => setFontFamily(e.target.value)}
+                style={{ width: '100%', fontSize: '11px' }}
+              >
+                {FONT_OPTIONS.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            <div className="input-group" style={{ flex: 1 }}>
+              <label className="input-label" style={{ fontSize: '10px' }}>Tamaño</label>
+              <input
+                type="number"
+                className="input input--sm input-numeric"
+                min={4}
+                max={20}
+                value={fontSizePt}
+                onChange={(e) => setFontSizePt(Number(e.target.value))}
+              />
+            </div>
+          </div>
+
+          {/* Text Position for this annotation */}
+          <div>
+            <label className="input-label" style={{ fontSize: '10px', marginBottom: '6px', display: 'block' }}>
+              Posición del texto en la casilla
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+              {(['top', 'middle', 'bottom'] as const).map((pos) => {
+                const label = pos === 'top' ? 'Arriba' : pos === 'middle' ? 'Medio' : 'Abajo';
+                const isSelected = annTextPos === pos;
+                return (
+                  <button
+                    key={pos}
+                    type="button"
+                    className={`btn btn--sm ${isSelected ? 'btn--primary' : 'btn--ghost'}`}
+                    style={{
+                      padding: '4px 6px',
+                      fontSize: '11px',
+                      fontWeight: isSelected ? 600 : 400,
+                    }}
+                    onClick={() => setAnnTextPos(pos)}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Fill Background for this annotation */}
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
+              <input
+                type="checkbox"
+                checked={annFillBg}
+                onChange={(e) => setAnnFillBg(e.target.checked)}
+                style={{ width: 16, height: 16, accentColor: '#0a84ff', cursor: 'pointer' }}
+              />
+              <span>Rellenar fondo de la casilla</span>
+            </label>
+
+            {annFillBg && (
+              <div style={{ marginTop: '8px', paddingLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="color"
+                  className="input-color"
+                  value={annBgColor}
+                  onChange={(e) => setAnnBgColor(e.target.value)}
+                  style={{ width: '28px', height: '24px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)' }}
+                />
+                <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
+                  {annBgColor.toUpperCase()}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: '4px' }}>
             <button
               type="button"
-              className="btn btn--sm"
-              onClick={handleDeleteSelected}
-              style={{
-                background: 'rgba(255, 69, 58, 0.15)',
-                color: '#ff453a',
-                border: '1px solid rgba(255, 69, 58, 0.35)',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-              }}
+              className="btn btn--primary btn--sm"
+              onClick={handleSave}
+              disabled={!text.trim()}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             >
-              <Trash2 size={14} />
-              <span>Eliminar anotación del día {selectedDay}</span>
+              {existingAnnotation ? <Check size={14} /> : <MessageSquarePlus size={14} />}
+              <span>{existingAnnotation ? 'Guardar cambios' : 'Añadir anotación'}</span>
             </button>
-          )}
+
+            {existingAnnotation && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={handleDeleteSelected}
+                style={{
+                  background: 'rgba(255, 69, 58, 0.15)',
+                  color: '#ff453a',
+                  border: '1px solid rgba(255, 69, 58, 0.35)',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Eliminar anotación del día {selectedDay}</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Existing annotations list */}
       {annotations.length > 0 && (
-        <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-glass-border)', paddingTop: 'var(--space-3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-            <label className="input-label" style={{ margin: 0 }}>
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.18)',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '12px 14px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <label className="input-label" style={{ margin: 0, fontSize: '11px', fontWeight: 600 }}>
               Anotaciones de este mes ({annotations.length})
             </label>
             <button

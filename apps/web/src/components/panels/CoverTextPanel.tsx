@@ -27,18 +27,33 @@ const CoverTextPanel: React.FC = () => {
   const cover = page.coverText;
 
   return (
-    <div className="panel-section">
-      <div className="panel-section__header">
-        <span className="panel-section__title">
-          <Type size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+    <div className="panel-section" style={{ padding: '16px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '14px',
+        paddingBottom: '10px',
+        borderBottom: '1px solid var(--color-glass-border)',
+      }}>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Type size={13} color="#0a84ff" />
           Texto de Portada
         </span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.025)',
+        border: '1px solid rgba(255, 255, 255, 0.07)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+      }}>
         {/* Title */}
         <div className="input-group">
-          <label className="input-label">Título</label>
+          <label className="input-label" style={{ fontSize: '10px' }}>Título</label>
           <input
             type="text"
             className="input input--sm"
@@ -50,7 +65,7 @@ const CoverTextPanel: React.FC = () => {
 
         {/* Subtitle */}
         <div className="input-group">
-          <label className="input-label">Subtítulo</label>
+          <label className="input-label" style={{ fontSize: '10px' }}>Subtítulo</label>
           <input
             type="text"
             className="input input--sm"
@@ -62,13 +77,17 @@ const CoverTextPanel: React.FC = () => {
 
         {/* Position */}
         <div className="input-group">
-          <label className="input-label">Posición</label>
-          <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+          <label className="input-label" style={{ fontSize: '10px' }}>Posición vertical</label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
             {POSITION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 className={`btn btn--sm ${cover.positionPreset === opt.value ? 'btn--primary' : 'btn--ghost'}`}
-                style={{ flex: 1, fontSize: 'var(--text-xs)' }}
+                style={{
+                  fontSize: '11px',
+                  padding: '5px',
+                  fontWeight: cover.positionPreset === opt.value ? 600 : 400,
+                }}
                 onClick={() => setCoverText({ positionPreset: opt.value, xMm: undefined, yMm: undefined })}
               >
                 {opt.label}
@@ -78,21 +97,22 @@ const CoverTextPanel: React.FC = () => {
         </div>
 
         {/* Font + Size row */}
-        <div className="panel-section__grid">
-          <div className="input-group" style={{ flex: 2 }}>
-            <label className="input-label">Tipografía</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8 }}>
+          <div className="input-group">
+            <label className="input-label" style={{ fontSize: '10px' }}>Tipografía</label>
             <select
               className="input select input--sm"
               value={cover.fontFamily}
               onChange={(e) => setCoverText({ fontFamily: e.target.value })}
+              style={{ width: '100%', fontSize: '11px' }}
             >
               {FONT_OPTIONS.map((f) => (
                 <option key={f} value={f}>{f}</option>
               ))}
             </select>
           </div>
-          <div className="input-group" style={{ flex: 1 }}>
-            <label className="input-label">Tamaño</label>
+          <div className="input-group">
+            <label className="input-label" style={{ fontSize: '10px' }}>Tamaño</label>
             <input
               type="number"
               className="input input--sm input-numeric"
@@ -106,16 +126,25 @@ const CoverTextPanel: React.FC = () => {
 
         {/* Color */}
         <div className="input-group">
-          <label className="input-label">Color</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <label className="input-label" style={{ fontSize: '10px' }}>Color del texto</label>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            background: 'rgba(0, 0, 0, 0.2)',
+            border: '1px solid var(--color-glass-border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '4px 8px',
+          }}>
             <input
               type="color"
               className="input-color"
               value={cover.color}
               onChange={(e) => setCoverText({ color: e.target.value })}
+              style={{ width: 26, height: 22, borderRadius: 4, cursor: 'pointer' }}
             />
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontFamily: 'monospace' }}>
-              {cover.color}
+            <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+              {cover.color.toUpperCase()}
             </span>
           </div>
         </div>

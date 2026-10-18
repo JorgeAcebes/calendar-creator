@@ -28,6 +28,8 @@ export type MaskShape = 'rectangle' | 'rounded-rectangle';
 
 export type StartDayOfWeek = 'monday' | 'sunday';
 
+export type DayNamesFormat = 'single' | 'short' | 'full';
+
 export type CoverTextPosition = 'top-center' | 'center' | 'bottom-center';
 
 export type Locale =
@@ -155,8 +157,10 @@ export interface GlobalSettings {
   bindingMarginMm?: number;
   /** Global setting: include year next to month name */
   includeYear?: boolean;
-  /** Global setting: use shortened day names */
+  /** Global setting: use shortened day names (legacy boolean) */
   shortDayNames?: boolean;
+  /** Day names format: 'single' (L, M, X), 'short' (LUN, MAR, MIÉ), 'full' (Lunes, Martes...) */
+  dayNamesFormat?: DayNamesFormat;
   /** Global setting: clip photos to safe area */
   clipToSafeArea?: boolean;
   /** Selected Spanish province ID for regional holidays */
@@ -267,8 +271,10 @@ export interface CalendarGridConfig {
   typographyOverrides?: Partial<DefaultTypography>;
   /** Day-specific annotations */
   annotations: DayAnnotation[];
-  /** Whether to use short day names (e.g. L vs Lunes) */
+  /** Whether to use short day names (legacy boolean) */
   shortDayNames?: boolean;
+  /** Day names format: 'single' (L, M, X), 'short' (LUN, MAR, MIÉ), 'full' (Lunes, Martes...) */
+  dayNamesFormat?: DayNamesFormat;
   /** Placement of holiday text within the day cell ('top' | 'middle' | 'bottom') */
   holidayTextPosition?: 'top' | 'middle' | 'bottom';
   /** Whether to fill the holiday cell background */

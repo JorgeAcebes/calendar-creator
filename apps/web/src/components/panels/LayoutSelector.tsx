@@ -3,8 +3,8 @@
 // =============================================================================
 
 import React, { useState } from 'react';
-import { Layout } from 'lucide-react';
-import type { LayoutTemplateId } from '@calendar-creator/shared-types';
+import { Layout, Calendar, Grid, Check } from 'lucide-react';
+import type { LayoutTemplateId, DayNamesFormat } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { getLayoutsForPageType } from '@/config/layouts';
 import { showToast } from '@/components/layout/Toast';
@@ -14,7 +14,8 @@ const LayoutSelector: React.FC = () => {
   const paper = useCalendarStore((s) => s.project.globalSettings.paperDimensions);
   const setPageLayout = useCalendarStore((s) => s.setPageLayout);
   const setGlobalIncludeYear = useCalendarStore((s) => s.setGlobalIncludeYear);
-  const setGlobalShortDayNames = useCalendarStore((s) => s.setGlobalShortDayNames);
+  const setGlobalDayNamesFormat = useCalendarStore((s) => s.setGlobalDayNamesFormat);
+  const globalDayNamesFormat = useCalendarStore((s) => s.project.globalSettings.dayNamesFormat ?? 'short');
   const setGlobalShowGridLines = useCalendarStore((s) => s.setGlobalShowGridLines);
   const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
   const [applyGlobally, setApplyGlobally] = useState(true);
@@ -23,6 +24,12 @@ const LayoutSelector: React.FC = () => {
   const layouts = getLayoutsForPageType(activePage.type, paper, useCalendarStore((s) => s.project.globalSettings.removeImageGaps));
   const removeImageGaps = useCalendarStore((s) => s.project.globalSettings.removeImageGaps);
   const setRemoveImageGaps = useCalendarStore((s) => s.setRemoveImageGaps);
+
+  const currentDayNamesFormat: DayNamesFormat = applyGlobally
+    ? globalDayNamesFormat
+    : (activePage.calendarGrid?.dayNamesFormat ?? globalDayNamesFormat);
+
+  const sliderIndex = currentDayNamesFormat === 'single' ? 0 : currentDayNamesFormat === 'short' ? 1 : 2;
 
   return (
     <div className="panel-section">
@@ -116,13 +123,14 @@ const LayoutSelector: React.FC = () => {
 
               {isActive && (
                 <div style={{
-                  position: 'absolute', top: 4, right: 4,
-                  width: 14, height: 14,
+                  position: 'absolute', top: 5, right: 5,
+                  width: 18, height: 18,
                   background: 'var(--color-accent)', borderRadius: '50%',
-                  border: '1px solid black',
+                  border: '1.5px solid #000',
+                  boxShadow: '0 2px 5px rgba(10, 132, 255, 0.4)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  <Check size={11} color="#ffffff" strokeWidth={3} />
                 </div>
               )}
             </button>
@@ -139,23 +147,149 @@ const LayoutSelector: React.FC = () => {
       </p>
 
       {activePage.calendarGrid && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-glass-border)', paddingTop: 'var(--space-3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{
+          marginTop: 'var(--space-4)',
+          padding: '14px',
+          background: 'var(--color-glass)',
+          border: '1px solid var(--color-glass-border)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px',
+        }}>
+          {/* Header with global toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '6px', borderBottom: '1px solid var(--color-glass-border)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Grid size={13} color="#0a84ff" />
               Opciones de cuadrícula
             </span>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)', fontWeight: applyGlobally ? 600 : 400 }}>
               <input
                 type="checkbox"
                 checked={applyGlobally}
                 onChange={(e) => setApplyGlobally(e.target.checked)}
                 style={{ width: 13, height: 13, accentColor: '#0a84ff', cursor: 'pointer' }}
               />
-              <span>Aplicar a todo (por defecto)</span>
+              <span>Aplicar a todo</span>
             </label>
           </div>
 
-          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {/* SLIDER: Formato de días de la semana */}
+          <div style={{
+            padding: '12px',
+            background: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label className="input-label" style={{ margin: 0, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar size={13} color="#0a84ff" />
+                Abreviación de días
+              </label>
+              <span className="badge" style={{
+                background: 'rgba(10, 132, 255, 0.15)',
+                color: '#0a84ff',
+                border: '1px solid rgba(10, 132, 255, 0.3)',
+                fontWeight: 600,
+                fontSize: '10px',
+                padding: '2px 8px',
+                borderRadius: '12px',
+              }}>
+                {sliderIndex === 0 ? '1 letra (L, M, X)' : sliderIndex === 1 ? '3 letras (LUN, MAR, MIÉ)' : 'Completo'}
+              </span>
+            </div>
+
+            {/* Slider control */}
+            <div style={{ padding: '2px 4px' }}>
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="1"
+                value={sliderIndex}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const formatMap: DayNamesFormat[] = ['single', 'short', 'full'];
+                  const newFormat = formatMap[val];
+                  setGlobalDayNamesFormat(newFormat, applyGlobally, activePageIndex);
+                  showToast({
+                    type: 'info',
+                    message: `Formato de días: ${newFormat === 'single' ? '1 letra (L, M, X)' : newFormat === 'short' ? '3 letras (LUN, MAR, MIÉ)' : 'Nombre completo'}`,
+                  });
+                }}
+                style={{
+                  width: '100%',
+                  cursor: 'pointer',
+                  accentColor: '#0a84ff',
+                  height: '6px',
+                }}
+              />
+            </div>
+
+            {/* Segmented Button Pills */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 4,
+              background: 'rgba(0, 0, 0, 0.2)',
+              padding: 3,
+              borderRadius: 8,
+              border: '1px solid rgba(255, 255, 255, 0.05)',
+            }}>
+              {[
+                { index: 0, format: 'single' as DayNamesFormat, label: 'L, M, X...' },
+                { index: 1, format: 'short' as DayNamesFormat, label: 'LUN, MAR...' },
+                { index: 2, format: 'full' as DayNamesFormat, label: 'Completo' },
+              ].map((opt) => {
+                const isSelected = sliderIndex === opt.index;
+                return (
+                  <button
+                    key={opt.format}
+                    type="button"
+                    onClick={() => {
+                      setGlobalDayNamesFormat(opt.format, applyGlobally, activePageIndex);
+                      showToast({
+                        type: 'info',
+                        message: `Formato de días: ${opt.format === 'single' ? '1 letra (L, M, X)' : opt.format === 'short' ? '3 letras (LUN, MAR, MIÉ)' : 'Nombre completo'}`,
+                      });
+                    }}
+                    style={{
+                      padding: '4px 6px',
+                      fontSize: '10px',
+                      fontWeight: isSelected ? 700 : 500,
+                      borderRadius: 6,
+                      border: isSelected ? '1px solid rgba(10, 132, 255, 0.5)' : '1px solid transparent',
+                      background: isSelected ? 'rgba(10, 132, 255, 0.22)' : 'transparent',
+                      color: isSelected ? '#0a84ff' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Toggle: Year in month header */}
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 500,
+            padding: '8px 10px',
+            background: 'rgba(0, 0, 0, 0.12)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
+            transition: 'background 0.15s',
+          }}>
             <input
               type="checkbox"
               id={`year-toggle-${activePageIndex}`}
@@ -169,35 +303,25 @@ const LayoutSelector: React.FC = () => {
                     : (e.target.checked ? 'Año incluido en este mes' : 'Año ocultado en este mes'),
                 });
               }}
-              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+              style={{ width: 15, height: 15, accentColor: '#0a84ff', cursor: 'pointer' }}
             />
-            <label htmlFor={`year-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Incluir año al lado del mes
-            </label>
-          </div>
+            <span style={{ color: 'var(--color-text-primary)' }}>Incluir año al lado del mes</span>
+          </label>
 
-          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <input
-              type="checkbox"
-              id={`short-day-toggle-${activePageIndex}`}
-              checked={activePage.calendarGrid.shortDayNames !== false}
-              onChange={(e) => {
-                setGlobalShortDayNames(e.target.checked, applyGlobally, activePageIndex);
-                showToast({
-                  type: 'info',
-                  message: applyGlobally
-                    ? (e.target.checked ? 'Días acortados en todo el calendario' : 'Nombres completos de días en todo el calendario')
-                    : (e.target.checked ? 'Días acortados en este mes' : 'Nombres completos en este mes'),
-                });
-              }}
-              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-            />
-            <label htmlFor={`short-day-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Nombres de días acortados (L, M, X...)
-            </label>
-          </div>
-
-          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+          {/* Toggle: Show grid lines */}
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 500,
+            padding: '8px 10px',
+            background: 'rgba(0, 0, 0, 0.12)',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(255, 255, 255, 0.04)',
+            transition: 'background 0.15s',
+          }}>
             <input
               type="checkbox"
               id={`grid-toggle-${activePageIndex}`}
@@ -205,30 +329,39 @@ const LayoutSelector: React.FC = () => {
               onChange={(e) => {
                 setGlobalShowGridLines(e.target.checked, applyGlobally, activePageIndex);
               }}
-              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+              style={{ width: 15, height: 15, accentColor: '#0a84ff', cursor: 'pointer' }}
             />
-            <label htmlFor={`grid-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Mostrar líneas de la rejilla
-            </label>
-          </div>
+            <span style={{ color: 'var(--color-text-primary)' }}>Mostrar líneas de la rejilla</span>
+          </label>
         </div>
       )}
 
       {/* Global Setting: Image Gaps */}
       {activePage.type === 'month' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
-          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <div style={{
+          marginTop: 'var(--space-3)',
+          padding: '12px 14px',
+          background: 'var(--color-glass)',
+          border: '1px solid var(--color-glass-border)',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: 500,
+          }}>
             <input
               type="checkbox"
               id="remove-gaps-toggle"
               checked={removeImageGaps === true}
               onChange={(e) => setRemoveImageGaps(e.target.checked)}
-              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+              style={{ width: 15, height: 15, accentColor: '#0a84ff', cursor: 'pointer' }}
             />
-            <label htmlFor="remove-gaps-toggle" className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Unir fotos sin separación
-            </label>
-          </div>
+            <span style={{ color: 'var(--color-text-primary)' }}>Unir fotos sin separación (sin espacio entre marcos)</span>
+          </label>
         </div>
       )}
     </div>

@@ -22,6 +22,7 @@ import type {
   Locale,
   PaperDimensions,
   CalendarGridConfig,
+  DayNamesFormat,
 } from '@calendar-creator/shared-types';
 import { getLayoutTemplate, getLayoutsForPageType } from '@/config/layouts';
 import { imagePreviewDataCache } from '@/utils/imageCache';
@@ -96,6 +97,8 @@ export interface CalendarStoreActions {
   setGlobalIncludeYear: (includeYear: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
   /** Update shortDayNames globally (default) or for single page */
   setGlobalShortDayNames: (shortDayNames: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
+  /** Update dayNamesFormat globally (default) or for single page ('single' | 'short' | 'full') */
+  setGlobalDayNamesFormat: (format: DayNamesFormat, applyGlobally?: boolean, pageIndex?: number) => void;
   /** Update showGridLines globally (default) or for single page */
   setGlobalShowGridLines: (showGridLines: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
   /** Update clipToSafeArea globally (default) or for single region */
@@ -236,6 +239,7 @@ function createDefaultSettings(): GlobalSettings {
     bindingMarginMm: 10,
     includeYear: true,
     shortDayNames: true,
+    dayNamesFormat: 'short',
     clipToSafeArea: false,
     includeNationalHolidays: false,
     holidayProvince: undefined,
@@ -311,6 +315,7 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
             showGridLines: true,
             includeYear: true,
             shortDayNames: true,
+            dayNamesFormat: 'short',
             holidayTextPosition: 'bottom',
             holidayFillBackground: false,
             holidayBackgroundColor: '#ffebee',
@@ -750,14 +755,37 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       setGlobalShortDayNames: (shortDayNames, applyGlobally = true, pageIndex) => {
         set((state) => {
           state.project.globalSettings.shortDayNames = shortDayNames;
+          const formatMode: DayNamesFormat = shortDayNames ? 'short' : 'full';
+          state.project.globalSettings.dayNamesFormat = formatMode;
           if (applyGlobally) {
             state.project.pages.forEach((page) => {
               if (page.calendarGrid) {
                 page.calendarGrid.shortDayNames = shortDayNames;
+                page.calendarGrid.dayNamesFormat = formatMode;
               }
             });
           } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
             state.project.pages[pageIndex].calendarGrid!.shortDayNames = shortDayNames;
+            state.project.pages[pageIndex].calendarGrid!.dayNamesFormat = formatMode;
+          }
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      setGlobalDayNamesFormat: (format, applyGlobally = true, pageIndex) => {
+        set((state) => {
+          state.project.globalSettings.dayNamesFormat = format;
+          state.project.globalSettings.shortDayNames = format !== 'full';
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              if (page.calendarGrid) {
+                page.calendarGrid.dayNamesFormat = format;
+                page.calendarGrid.shortDayNames = format !== 'full';
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            state.project.pages[pageIndex].calendarGrid!.dayNamesFormat = format;
+            state.project.pages[pageIndex].calendarGrid!.shortDayNames = format !== 'full';
           }
           state.project.updatedAt = new Date().toISOString();
         });

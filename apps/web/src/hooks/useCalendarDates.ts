@@ -11,7 +11,7 @@ import {
 } from 'date-fns';
 import { es, enUS, enGB, fr, de, it, pt, ptBR, ca, gl, eu } from 'date-fns/locale';
 import type { Locale as DateFnsLocale } from 'date-fns';
-import type { Locale, StartDayOfWeek } from '@calendar-creator/shared-types';
+import type { Locale, StartDayOfWeek, DayNamesFormat } from '@calendar-creator/shared-types';
 
 const LOCALE_MAP: Record<Locale, DateFnsLocale> = {
   'es-ES': es,
@@ -65,7 +65,7 @@ export function useCalendarDates(
   month: number,
   locale: Locale,
   startDay: StartDayOfWeek = 'monday',
-  shortDayNames: boolean = true
+  dayNamesFormat: DayNamesFormat | boolean = 'short'
 ): CalendarMonth {
   const dateFnsLocale = LOCALE_MAP[locale] ?? es;
   const date = new Date(year, month - 1, 1);
@@ -80,12 +80,39 @@ export function useCalendarDates(
     firstDow = firstDow === 0 ? 6 : firstDow - 1;
   }
 
+  // Determine format mode
+  const formatMode: DayNamesFormat = typeof dayNamesFormat === 'string'
+    ? dayNamesFormat
+    : dayNamesFormat ? 'short' : 'full';
+
   // Generate day names
   const dayNames: string[] = [];
-  const startIdx = startDay === 'monday' ? 1 : 0;
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(2024, 0, startIdx + i); // Jan 2024 started on Monday
-    dayNames.push(format(d, shortDayNames ? 'EEEEEE' : 'EEEE', { locale: dateFnsLocale }));
+  const isSpanish = locale === 'es-ES' || locale === 'ca-ES' || locale === 'gl-ES' || locale === 'eu-ES';
+
+  if (isSpanish && formatMode === 'single') {
+    dayNames.push(...(startDay === 'monday'
+      ? ['L', 'M', 'X', 'J', 'V', 'S', 'D']
+      : ['D', 'L', 'M', 'X', 'J', 'V', 'S']));
+  } else if (isSpanish && formatMode === 'short') {
+    dayNames.push(...(startDay === 'monday'
+      ? ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM']
+      : ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']));
+  } else if (isSpanish && formatMode === 'full') {
+    dayNames.push(...(startDay === 'monday'
+      ? ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+      : ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']));
+  } else {
+    const startIdx = startDay === 'monday' ? 1 : 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(2024, 0, startIdx + i);
+      if (formatMode === 'single') {
+        dayNames.push(format(d, 'EEEEE', { locale: dateFnsLocale }));
+      } else if (formatMode === 'short') {
+        dayNames.push(format(d, 'EEE', { locale: dateFnsLocale }).replace('.', '').toUpperCase());
+      } else {
+        dayNames.push(format(d, 'EEEE', { locale: dateFnsLocale }));
+      }
+    }
   }
 
   // Month name

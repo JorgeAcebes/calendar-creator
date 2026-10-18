@@ -3,7 +3,7 @@
 // =============================================================================
 
 import React, { useState } from 'react';
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, ZoomIn, Trash2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, ZoomIn, ZoomOut, Trash2, Shield, Move } from 'lucide-react';
 import type { ImageTransform } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -46,6 +46,11 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
     });
   };
 
+  const changeScale = (delta: number) => {
+    const newScale = Math.max(0.5, Math.min(3, Math.round((transform.scale + delta) * 100) / 100));
+    updateTransform(pageIndex, regionId, { scale: newScale });
+  };
+
   // Keyboard shortcuts
   useKeyboardShortcuts(
     hasImage
@@ -61,178 +66,294 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
 
   if (!hasImage) {
     return (
-      <div className="panel-section animate-fade-in" style={{ padding: '12px 16px' }}>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: 1.5, margin: 0 }}>
-          🖼️ <strong>Hueco seleccionado</strong><br />
-          Arrastra una foto desde la galería lateral o haz clic en una foto para colocarla en esta ranura.
-        </p>
+      <div className="panel-section animate-fade-in" style={{ padding: '14px 16px' }}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px dashed var(--color-glass-border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px',
+          textAlign: 'center',
+        }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: 1.5, margin: 0 }}>
+            🖼️ <strong>Hueco seleccionado</strong><br />
+            Arrastra una foto desde la galería lateral para colocarla aquí.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="panel-section animate-fade-in">
-      <div className="panel-section__header">
-        <span className="panel-section__title">Ajuste de imagen</span>
-        <button
-          className="btn btn--ghost btn--sm btn--icon tooltip"
-          data-tooltip="Quitar imagen"
-          onClick={() => clearImage(pageIndex, regionId)}
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
-
-      {/* Helpful Hint */}
+    <div className="panel-section animate-fade-in" style={{ padding: '16px' }}>
+      {/* Section Header with Quick Actions */}
       <div style={{
-        padding: '8px 12px',
-        marginBottom: '12px',
-        background: 'rgba(10, 132, 255, 0.08)',
-        borderRadius: 'var(--radius-sm)',
-        fontSize: '11px',
-        color: 'var(--color-text-secondary)',
         display: 'flex',
         alignItems: 'center',
-        gap: 6,
+        justifyContent: 'space-between',
+        marginBottom: '12px',
       }}>
-        <span>💡</span>
-        <span>Arrastra la foto en el calendario para moverla a otra casilla o intercambiarla. Usa el D-Pad inferior para afinar el encuadre.</span>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Move size={13} color="#0a84ff" />
+          Ajuste de encuadre
+        </span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="btn btn--ghost btn--sm"
+            style={{ fontSize: '11px', padding: '3px 8px', height: 'auto', borderRadius: '6px' }}
+            onClick={resetTransform}
+            title="Centrar y volver a 100%"
+          >
+            <RotateCcw size={11} style={{ marginRight: 4 }} />
+            Centrar
+          </button>
+          <button
+            className="btn btn--ghost btn--sm"
+            style={{ fontSize: '11px', color: '#ff453a', padding: '3px 8px', height: 'auto', borderRadius: '6px' }}
+            onClick={() => clearImage(pageIndex, regionId)}
+            title="Quitar foto de esta ranura"
+          >
+            <Trash2 size={11} style={{ marginRight: 4 }} />
+            Quitar
+          </button>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-        <button
-          className="btn btn--sm btn--ghost"
-          style={{ flex: 1, fontSize: '11px' }}
-          onClick={resetTransform}
-          title="Centrar foto y resetear escala a 100%"
-        >
-          <RotateCcw size={12} style={{ marginRight: 4 }} />
-          Restablecer
-        </button>
-        <button
-          className="btn btn--sm btn--ghost"
-          style={{ fontSize: '11px', color: 'var(--color-danger)' }}
-          onClick={() => clearImage(pageIndex, regionId)}
-          title="Quitar foto de esta ranura"
-        >
-          <Trash2 size={12} style={{ marginRight: 4 }} />
-          Quitar
-        </button>
-      </div>
-
-      {/* D-Pad */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-4)' }}>
-        <div className="dpad">
+      {/* D-Pad & Precision Card */}
+      <div style={{
+        background: 'rgba(0, 0, 0, 0.22)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '14px',
+      }}>
+        {/* D-Pad */}
+        <div className="dpad" style={{ filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.3))' }}>
           <div />
           <button className="dpad__btn" onClick={() => move(0, -stepMm)} title="Mover arriba">
-            <ArrowUp size={16} />
+            <ArrowUp size={15} />
           </button>
           <div />
           <button className="dpad__btn" onClick={() => move(-stepMm, 0)} title="Mover izquierda">
-            <ArrowLeft size={16} />
+            <ArrowLeft size={15} />
           </button>
-          <button className="dpad__btn dpad__btn--center" onClick={resetTransform} title="Restablecer">
-            <RotateCcw size={14} />
+          <button className="dpad__btn dpad__btn--center" onClick={resetTransform} title="Centrar encuadre">
+            <RotateCcw size={13} />
           </button>
           <button className="dpad__btn" onClick={() => move(stepMm, 0)} title="Mover derecha">
-            <ArrowRight size={16} />
+            <ArrowRight size={15} />
           </button>
           <div />
           <button className="dpad__btn" onClick={() => move(0, stepMm)} title="Mover abajo">
-            <ArrowDown size={16} />
+            <ArrowDown size={15} />
           </button>
           <div />
         </div>
 
-        {/* Step size */}
-        <div className="panel-section__row" style={{ width: '100%' }}>
-          <div className="input-group" style={{ flex: 1 }}>
-            <label className="input-label">Paso (mm)</label>
-            <select
-              className="input select input--sm"
-              value={stepMm}
-              onChange={(e) => setOffsetStep(Number(e.target.value))}
-            >
-              <option value="0.5">0.5 mm</option>
-              <option value="1">1 mm</option>
-              <option value="2">2 mm</option>
-              <option value="5">5 mm</option>
-            </select>
+        {/* Step chips selector */}
+        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, paddingTop: 6, borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)', fontWeight: 500 }}>
+            Paso:
+          </span>
+          <div style={{ display: 'flex', gap: 4 }}>
+            {[0.5, 1, 2, 5].map((val) => {
+              const isSelected = stepMm === val;
+              return (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setOffsetStep(val)}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '10px',
+                    fontWeight: isSelected ? 700 : 500,
+                    borderRadius: 6,
+                    border: isSelected ? '1px solid #0a84ff' : '1px solid rgba(255, 255, 255, 0.08)',
+                    background: isSelected ? 'rgba(10, 132, 255, 0.25)' : 'rgba(255, 255, 255, 0.03)',
+                    color: isSelected ? '#0a84ff' : 'var(--color-text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {val} mm
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* Numeric inputs */}
-      <div className="panel-section__grid" style={{ marginTop: 'var(--space-4)' }}>
-        <div className="input-group">
-          <label className="input-label">Offset X (mm)</label>
-          <input
-            type="number"
-            className="input input--sm input-numeric"
-            value={Math.round(transform.offsetXMm * 10) / 10}
-            step={0.5}
-            onChange={(e) =>
-              updateTransform(pageIndex, regionId, { offsetXMm: Number(e.target.value) })
-            }
-          />
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 10,
+        marginBottom: '14px',
+      }}>
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '8px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Offset X</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input
+              type="number"
+              className="input input--sm input-numeric"
+              style={{ width: '100%', height: '26px', fontSize: '12px' }}
+              value={Math.round(transform.offsetXMm * 10) / 10}
+              step={0.5}
+              onChange={(e) =>
+                updateTransform(pageIndex, regionId, { offsetXMm: Number(e.target.value) })
+              }
+            />
+            <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>mm</span>
+          </div>
         </div>
-        <div className="input-group">
-          <label className="input-label">Offset Y (mm)</label>
-          <input
-            type="number"
-            className="input input--sm input-numeric"
-            value={Math.round(transform.offsetYMm * 10) / 10}
-            step={0.5}
-            onChange={(e) =>
-              updateTransform(pageIndex, regionId, { offsetYMm: Number(e.target.value) })
-            }
-          />
+
+        <div style={{
+          background: 'rgba(0, 0, 0, 0.15)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRadius: 'var(--radius-sm)',
+          padding: '8px 10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+        }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase' }}>Offset Y</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <input
+              type="number"
+              className="input input--sm input-numeric"
+              style={{ width: '100%', height: '26px', fontSize: '12px' }}
+              value={Math.round(transform.offsetYMm * 10) / 10}
+              step={0.5}
+              onChange={(e) =>
+                updateTransform(pageIndex, regionId, { offsetYMm: Number(e.target.value) })
+              }
+            />
+            <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>mm</span>
+          </div>
         </div>
       </div>
 
-      {/* Scale slider */}
-      <div className="input-group" style={{ marginTop: 'var(--space-4)' }}>
-        <div className="panel-section__row panel-section__row--between">
-          <label className="input-label">
-            <ZoomIn size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-            Escala
-          </label>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-            {Math.round(transform.scale * 100)}%
+      {/* Scale Slider Card */}
+      <div style={{
+        background: 'rgba(0, 0, 0, 0.18)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        borderRadius: 'var(--radius-md)',
+        padding: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        marginBottom: '14px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ZoomIn size={13} color="#0a84ff" />
+            Zoom de imagen
           </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              fontSize: '11px',
+              fontVariantNumeric: 'tabular-nums',
+              fontWeight: 700,
+              color: '#0a84ff',
+              background: 'rgba(10, 132, 255, 0.12)',
+              padding: '1px 6px',
+              borderRadius: '4px',
+            }}>
+              {Math.round(transform.scale * 100)}%
+            </span>
+            {transform.scale !== 1 && (
+              <button
+                type="button"
+                onClick={() => updateTransform(pageIndex, regionId, { scale: 1 })}
+                style={{
+                  fontSize: '9px',
+                  color: 'var(--color-text-tertiary)',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  padding: '1px 4px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+                title="Restablecer zoom al 100%"
+              >
+                100%
+              </button>
+            )}
+          </div>
         </div>
-        <input
-          type="range"
-          className="slider"
-          min={0.5}
-          max={3}
-          step={0.05}
-          value={transform.scale}
-          onChange={(e) =>
-            updateTransform(pageIndex, regionId, { scale: Number(e.target.value) })
-          }
-        />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => changeScale(-0.05)}
+            className="btn btn--ghost btn--sm"
+            style={{ padding: '2px 6px', height: '24px' }}
+            title="Reducir zoom (-5%)"
+          >
+            <ZoomOut size={12} />
+          </button>
+          <input
+            type="range"
+            className="slider"
+            min={0.5}
+            max={3}
+            step={0.05}
+            value={transform.scale}
+            onChange={(e) =>
+              updateTransform(pageIndex, regionId, { scale: Number(e.target.value) })
+            }
+            style={{ flex: 1, accentColor: '#0a84ff', cursor: 'pointer' }}
+          />
+          <button
+            type="button"
+            onClick={() => changeScale(0.05)}
+            className="btn btn--ghost btn--sm"
+            style={{ padding: '2px 6px', height: '24px' }}
+            title="Aumentar zoom (+5%)"
+          >
+            <ZoomIn size={12} />
+          </button>
+        </div>
       </div>
 
-      {/* Clip to Safe Area Toggle */}
-      <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-glass-border)', paddingTop: 'var(--space-3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Zona segura
+      {/* Clip to Safe Area Card */}
+      <div style={{
+        background: 'rgba(255, 214, 10, 0.05)',
+        border: '1px solid rgba(255, 214, 10, 0.2)',
+        borderRadius: 'var(--radius-md)',
+        padding: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#ffd60a', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Shield size={13} />
+            Zona de seguridad
           </span>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '10px', cursor: 'pointer', color: applyGlobally ? '#ffd60a' : 'var(--color-text-tertiary)', fontWeight: applyGlobally ? 600 : 400 }}>
             <input
               type="checkbox"
               checked={applyGlobally}
               onChange={(e) => setApplyGlobally(e.target.checked)}
-              style={{ width: 13, height: 13, accentColor: '#0a84ff', cursor: 'pointer' }}
+              style={{ width: 12, height: 12, accentColor: '#ffd60a', cursor: 'pointer' }}
             />
-            <span>Aplicar a todas las fotos (por defecto)</span>
+            <span>Aplicar a todo</span>
           </label>
         </div>
 
-        <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '11px', cursor: 'pointer', color: 'var(--color-text-primary)', lineHeight: 1.4 }}>
           <input
             type="checkbox"
             id={`clip-${regionId}`}
@@ -246,12 +367,10 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
                   : (e.target.checked ? 'Foto limitada a la zona segura' : 'Límite de zona segura desactivado en esta foto'),
               });
             }}
-            style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+            style={{ width: 14, height: 14, marginTop: 2, accentColor: '#ffd60a', cursor: 'pointer' }}
           />
-          <label htmlFor={`clip-${regionId}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-            Limitar foto a la zona segura (5mm del corte)
-          </label>
-        </div>
+          <span>Limitar foto a la zona segura (5mm del corte)</span>
+        </label>
       </div>
     </div>
   );

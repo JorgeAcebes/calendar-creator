@@ -61,7 +61,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
     month,
     locale,
     config.startDayOfWeek,
-    config.shortDayNames !== false
+    config.dayNamesFormat ?? (config.shortDayNames !== false ? 'short' : 'full')
   );
 
   // Grid dimensions in canvas pixels

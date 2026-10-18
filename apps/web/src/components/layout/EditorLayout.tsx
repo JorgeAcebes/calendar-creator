@@ -255,58 +255,100 @@ const EditorLayout: React.FC = () => {
           title="Arrastra para redimensionar el panel de ajustes"
         />
 
-        {/* Tab Navigation Bar */}
+        {/* Tab Navigation Bar — Modern Floating Segmented Control */}
         <div
           style={{
-            display: 'flex',
-            background: 'var(--color-bg-secondary)',
-            borderBottom: '1px solid var(--color-glass-border)',
-            padding: '8px',
-            gap: '6px',
+            padding: '10px 14px 6px',
             position: 'sticky',
             top: 0,
             zIndex: 20,
+            background: 'var(--color-bg-secondary)',
           }}
         >
-          <button
-            className={`btn btn--sm ${activeTab === 'design' ? 'btn--primary' : 'btn--ghost'}`}
-            style={{ flex: 1, padding: '6px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            onClick={() => setActiveTab('design')}
-            title="Maquetación y encuadre de fotos"
+          <div
+            style={{
+              display: 'flex',
+              background: 'rgba(0, 0, 0, 0.2)',
+              border: '1px solid var(--color-glass-border)',
+              borderRadius: '10px',
+              padding: '3px',
+              gap: '4px',
+            }}
           >
-            <Layout size={14} />
-            <span>Diseño</span>
-            {selectedRegion && (
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: '50%',
-                  background: '#2ed573',
-                  display: 'inline-block',
-                }}
-                title="Foto seleccionada"
-              />
-            )}
-          </button>
-          <button
-            className={`btn btn--sm ${activeTab === 'typography' ? 'btn--primary' : 'btn--ghost'}`}
-            style={{ flex: 1, padding: '6px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            onClick={() => setActiveTab('typography')}
-            title="Tipografía de títulos y números"
-          >
-            <Type size={14} />
-            <span>Tipografía</span>
-          </button>
-          <button
-            className={`btn btn--sm ${activeTab === 'notes' ? 'btn--primary' : 'btn--ghost'}`}
-            style={{ flex: 1, padding: '6px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            onClick={() => setActiveTab('notes')}
-            title={activePage?.type === 'cover' ? 'Textos de la portada' : 'Notas y festivos del mes'}
-          >
-            <FileText size={14} />
-            <span>{activePage?.type === 'cover' ? 'Textos' : 'Notas'}</span>
-          </button>
+            <button
+              className={`btn btn--sm ${activeTab === 'design' ? 'btn--primary' : 'btn--ghost'}`}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: activeTab === 'design' ? 600 : 500,
+                borderRadius: '7px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                boxShadow: activeTab === 'design' ? '0 2px 6px rgba(10, 132, 255, 0.3)' : 'none',
+              }}
+              onClick={() => setActiveTab('design')}
+              title="Maquetación y encuadre de fotos"
+            >
+              <Layout size={13} />
+              <span>Diseño</span>
+              {selectedRegion && (
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: '#2ed573',
+                    boxShadow: '0 0 6px #2ed573',
+                    display: 'inline-block',
+                  }}
+                  title="Foto seleccionada"
+                />
+              )}
+            </button>
+            <button
+              className={`btn btn--sm ${activeTab === 'typography' ? 'btn--primary' : 'btn--ghost'}`}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: activeTab === 'typography' ? 600 : 500,
+                borderRadius: '7px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                boxShadow: activeTab === 'typography' ? '0 2px 6px rgba(10, 132, 255, 0.3)' : 'none',
+              }}
+              onClick={() => setActiveTab('typography')}
+              title="Tipografía de títulos y números"
+            >
+              <Type size={13} />
+              <span>Tipografía</span>
+            </button>
+            <button
+              className={`btn btn--sm ${activeTab === 'notes' ? 'btn--primary' : 'btn--ghost'}`}
+              style={{
+                flex: 1,
+                padding: '6px 10px',
+                fontSize: '12px',
+                fontWeight: activeTab === 'notes' ? 600 : 500,
+                borderRadius: '7px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                boxShadow: activeTab === 'notes' ? '0 2px 6px rgba(10, 132, 255, 0.3)' : 'none',
+              }}
+              onClick={() => setActiveTab('notes')}
+              title={activePage?.type === 'cover' ? 'Textos de la portada' : 'Notas y festivos del mes'}
+            >
+              <FileText size={13} />
+              <span>{activePage?.type === 'cover' ? 'Textos' : 'Notas'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Tab Content Container */}
