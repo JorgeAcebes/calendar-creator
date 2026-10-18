@@ -94,7 +94,7 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
         gap: 6,
       }}>
         <span>💡</span>
-        <span>Arrastra la foto directamente en el lienzo para encuadrarla y usa la rueda del ratón para zoom.</span>
+        <span>Arrastra la foto en el calendario para moverla a otra casilla o intercambiarla. Usa el D-Pad inferior para afinar el encuadre.</span>
       </div>
 
       {/* Quick Actions */}

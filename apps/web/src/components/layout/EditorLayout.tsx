@@ -32,8 +32,8 @@ const EditorLayout: React.FC = () => {
   const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
   
   const [loading, setLoading] = useState(id !== 'new');
-  const [sidebarWidth, setSidebarWidth] = useState(280); // resizable left sidebar
-  const [panelWidth, setPanelWidth] = useState(330); // resizable right panel
+  const [sidebarWidth, setSidebarWidth] = useState(320); // resizable left sidebar
+  const [panelWidth, setPanelWidth] = useState(360); // generous right panel to eliminate horizontal scroll
   const [activeTab, setActiveTab] = useState<RightPanelTab>('design');
   const hasAutoFittedRef = useRef(false);
 
@@ -123,7 +123,7 @@ const EditorLayout: React.FC = () => {
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = moveEvent.clientX - startX;
-      const newWidth = Math.max(220, Math.min(startWidth + deltaX, 550));
+      const newWidth = Math.max(280, Math.min(startWidth + deltaX, 600));
       setSidebarWidth(newWidth);
     };
 
@@ -144,7 +144,7 @@ const EditorLayout: React.FC = () => {
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       const deltaX = startX - moveEvent.clientX;
-      const newWidth = Math.max(280, Math.min(startWidth + deltaX, 600));
+      const newWidth = Math.max(340, Math.min(startWidth + deltaX, 650));
       setPanelWidth(newWidth);
     };
 

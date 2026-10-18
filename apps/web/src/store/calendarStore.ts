@@ -573,10 +573,14 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
           const r2 = page.imageRegions.find((r: any) => r.id === regionId2);
           if (r1 && r2) {
             const tempFileId = r1.imageFileId;
-            const tempTransform = { ...r1.transform };
+            const tempTransform = r1.transform
+              ? { ...r1.transform }
+              : { scale: 1, offsetXMm: 0, offsetYMm: 0 };
             
             r1.imageFileId = r2.imageFileId;
-            r1.transform = r2.transform;
+            r1.transform = r2.imageFileId && r2.transform
+              ? { ...r2.transform }
+              : { scale: 1, offsetXMm: 0, offsetYMm: 0 };
             
             r2.imageFileId = tempFileId;
             r2.transform = tempTransform;
