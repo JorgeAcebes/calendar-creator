@@ -28,8 +28,6 @@ export const translations = {
     'panel.layouts': 'Plantillas',
     'panel.cover': 'Portada',
     'panel.text': 'Anotaciones',
-
-    'donate.button': 'Apoya el Proyecto',
   },
   'en-US': {
     'toolbar.project_name': 'Project name',
@@ -58,8 +56,6 @@ export const translations = {
     'panel.layouts': 'Layouts',
     'panel.cover': 'Cover',
     'panel.text': 'Annotations',
-
-    'donate.button': 'Support the Project',
   }
 };
 

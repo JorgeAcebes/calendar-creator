@@ -15,6 +15,7 @@ import AnnotationPanel from '@/components/panels/AnnotationPanel';
 import OffsetControls from '@/components/controls/OffsetControls';
 import CoverTextPanel from '@/components/panels/CoverTextPanel';
 import { useCalendarStore } from '@/store/calendarStore';
+import { loadProjectData, saveProjectData } from '@/utils/projectStorage';
 import type { CalendarProject } from '@calendar-creator/shared-types';
 
 const EditorLayout: React.FC = () => {
@@ -30,41 +31,40 @@ const EditorLayout: React.FC = () => {
   const [loading, setLoading] = useState(id !== 'new');
   const [panelWidth, setPanelWidth] = useState(320); // default width
 
-  // Load project from Tauri AppData
+  // Load project from storage (Tauri AppData or localStorage in browser)
   useEffect(() => {
     if (id && id !== 'new') {
-      import('@tauri-apps/plugin-fs').then(({ readTextFile, BaseDirectory }) => {
-        readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData })
-          .then(data => {
-            const parsedData: CalendarProject = JSON.parse(data);
+      loadProjectData(id)
+        .then((parsedData) => {
+          if (parsedData) {
             loadProject(parsedData);
             setLoading(false);
-          })
-          .catch(() => {
-            alert('Error al cargar el proyecto.');
+          } else {
+            alert('Proyecto no encontrado.');
             navigate('/');
-          });
-      }).catch(console.error);
+          }
+        })
+        .catch((err) => {
+          console.error('Error loading project', err);
+          alert('Error al cargar el proyecto.');
+          navigate('/');
+        });
     } else {
       setLoading(false);
     }
   }, [id, loadProject, navigate]);
 
-  // Save project to Tauri AppData
+  // Save project to storage
   const saveProject = (proj: CalendarProject) => {
     if (!proj.id || loading || id === 'new') return;
-    import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-      writeTextFile(`projects/${proj.id}.json`, JSON.stringify(proj), { baseDir: BaseDirectory.AppData }).catch(console.error);
-    });
+    saveProjectData(proj).catch(console.error);
   };
 
   // Auto-save logic (debounced)
   useEffect(() => {
     if (loading || !project.id || id === 'new') return;
     const timeoutId = setTimeout(() => {
-      import('@tauri-apps/plugin-fs').then(({ writeTextFile, BaseDirectory }) => {
-        writeTextFile(`projects/${project.id}.json`, JSON.stringify(project), { baseDir: BaseDirectory.AppData }).catch(console.error);
-      });
+      saveProjectData(project).catch(console.error);
     }, 1000);
 
     return () => clearTimeout(timeoutId);
@@ -123,7 +123,14 @@ const EditorLayout: React.FC = () => {
       </div>
 
       {/* Center — Canvas */}
-      <div className="editor-layout__canvas" style={{ position: 'relative' }}>
+      <div
+        className="editor-layout__canvas"
+        style={{ position: 'relative' }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        }}
+      >
         {activePageIndex > 0 && (
           <button
             className="btn btn--icon glass-panel"

@@ -5,7 +5,7 @@
 // calendar grid, and cover text. All in a multi-layer Konva Stage.
 // =============================================================================
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Stage, Layer, Rect, Line, Text, Group } from 'react-konva';
 import type Konva from 'konva';
 import { mmToPx } from '@calendar-creator/shared-types';
@@ -61,76 +61,30 @@ const CalendarCanvas: React.FC = () => {
   const setDragOverRegionId = useCalendarStore((s) => s.setDragOverRegionId);
   const draggedImageIds = useCalendarStore((s) => s.editor.draggedImageIds);
   const lastDistRef = useRef<number>(0);
-  const overlayRef = useRef<HTMLDivElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
 
-  // ---- Synchronous drag activation via document-level listeners ----
-  // We need the overlay enabled BEFORE React re-renders. The Zustand store
-  // update from PhotoPanel.handleDragStart is async, so `isDraggingFromGallery`
-  // is still false when the first dragenter fires on the canvas. We solve
-  // this by:
-  //   1) Detecting drag activity at the document level (synchronous callback)
-  //   2) Directly mutating the overlay DOM element's style.pointerEvents
-  //   3) Tracking with a ref so React's render path stays consistent
-  const htmlDragActiveRef = useRef(false);
-  const [htmlDragActive, setHtmlDragActive] = useState(false);
+  const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
 
-  const enableOverlay = useCallback(() => {
-    if (!htmlDragActiveRef.current) {
-      htmlDragActiveRef.current = true;
-      setHtmlDragActive(true);
-      // Directly mutate the overlay element for immediate effect
-      if (overlayRef.current) {
-        overlayRef.current.style.pointerEvents = 'all';
-        overlayRef.current.style.zIndex = '10';
-      }
-    }
-  }, []);
-
-  const disableOverlay = useCallback(() => {
-    if (htmlDragActiveRef.current) {
-      htmlDragActiveRef.current = false;
-      setHtmlDragActive(false);
-      if (overlayRef.current) {
-        overlayRef.current.style.pointerEvents = 'none';
-        overlayRef.current.style.zIndex = '-1';
-      }
-      setDragOverRegionId(null);
-    }
-  }, [setDragOverRegionId]);
-
+  // Global listeners to prevent default browser behavior when files are dragged into the window
   useEffect(() => {
-    // Detect ANY drag entering the document — if it carries our marker data,
-    // enable the overlay immediately.
-    const onDocDragEnter = (e: DragEvent) => {
-      // Check if this drag comes from our gallery or if it's a file from the OS
-      if (e.dataTransfer?.types.includes('text/plain') ||
-          e.dataTransfer?.types.includes('application/json') ||
-          e.dataTransfer?.types.includes('Files')) {
-        enableOverlay();
-      }
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
     };
 
-    const onDocDragEnd = () => {
-      disableOverlay();
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragOverCanvas(false);
+      setDragOverRegionId(null);
     };
 
-    const onDocDrop = () => {
-      // The overlay's own onDrop handles assignment;
-      // this document-level handler just cleans up if the drop lands outside.
-      // Use a tiny delay to let the overlay's handler fire first.
-      setTimeout(() => disableOverlay(), 50);
-    };
-
-    document.addEventListener('dragenter', onDocDragEnter, true);
-    document.addEventListener('dragend', onDocDragEnd, true);
-    document.addEventListener('drop', onDocDrop, true);
+    window.addEventListener('dragover', handleWindowDragOver);
+    window.addEventListener('drop', handleWindowDrop);
 
     return () => {
-      document.removeEventListener('dragenter', onDocDragEnter, true);
-      document.removeEventListener('dragend', onDocDragEnd, true);
-      document.removeEventListener('drop', onDocDrop, true);
+      window.removeEventListener('dragover', handleWindowDragOver);
+      window.removeEventListener('drop', handleWindowDrop);
     };
-  }, [enableOverlay, disableOverlay]);
+  }, [setDragOverRegionId]);
 
   // Safe area (5mm from trim on each side)
   const safeMargin = toCanvasPx(5, canvasScale);
@@ -206,10 +160,10 @@ const CalendarCanvas: React.FC = () => {
 
   // ---- Drag-and-drop helpers ----
 
-  /** Given a mouse event relative to the overlay/wrapper, find which region is under the cursor */
+  /** Given a mouse event relative to the canvas wrapper, find which region is under the cursor */
   const findRegionAtPos = (clientX: number, clientY: number): string | null => {
-    const el = overlayRef.current;
-    if (!el) return null;
+    const el = canvasWrapperRef.current;
+    if (!el || !page.imageRegions) return null;
     const rect = el.getBoundingClientRect();
     const posX = clientX - rect.left;
     const posY = clientY - rect.top;
@@ -226,10 +180,39 @@ const CalendarCanvas: React.FC = () => {
     return null;
   };
 
-  const handleOverlayDragOver = (e: React.DragEvent) => {
+  /** If drop is slightly outside a region, find the closest one */
+  const findClosestRegionAtPos = (clientX: number, clientY: number): string | null => {
+    const el = canvasWrapperRef.current;
+    if (!el || !page.imageRegions || page.imageRegions.length === 0) return null;
+    const rect = el.getBoundingClientRect();
+    const posX = clientX - rect.left;
+    const posY = clientY - rect.top;
+
+    let closestId: string | null = null;
+    let minDistance = Infinity;
+
+    for (const r of page.imageRegions as any[]) {
+      const rx = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
+      const ry = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
+      const rw = toCanvasPx(r.mask.widthMm, canvasScale);
+      const rh = toCanvasPx(r.mask.heightMm, canvasScale);
+      const cx = rx + rw / 2;
+      const cy = ry + rh / 2;
+      const dist = Math.hypot(posX - cx, posY - cy);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestId = r.id;
+      }
+    }
+    return closestId;
+  };
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
     e.dataTransfer.dropEffect = 'copy';
+    if (!isDragOverCanvas) {
+      setIsDragOverCanvas(true);
+    }
     const hoveredId = findRegionAtPos(e.clientX, e.clientY);
     const current = useCalendarStore.getState().editor.dragOverRegionId;
     if (hoveredId !== current) {
@@ -237,48 +220,64 @@ const CalendarCanvas: React.FC = () => {
     }
   };
 
-  const handleOverlayDragLeave = (e: React.DragEvent) => {
-    // Only clear if truly leaving the overlay (not entering a child)
-    if (e.currentTarget === e.target) {
+  const handleCanvasDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOverCanvas(true);
+  };
+
+  const handleCanvasDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget === e.target || !e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverRegionId(null);
+      setIsDragOverCanvas(false);
     }
   };
 
-  const handleOverlayDrop = async (e: React.DragEvent) => {
+  const handleCanvasDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
 
     try {
-      const payloadText = e.dataTransfer.getData('text/plain');
+      const payloadCustom = e.dataTransfer.getData('calendar-creator/image-ids');
       const payloadJson = e.dataTransfer.getData('application/json');
+      const payloadText = e.dataTransfer.getData('text/plain');
 
       let imageIds = useCalendarStore.getState().editor.draggedImageIds || [];
 
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         // Upload external files directly dropped on the canvas
-        const filesData = Array.from(e.dataTransfer.files).map(f => ({
+        const filesData = Array.from(e.dataTransfer.files).map((f) => ({
           name: f.name,
           size: f.size,
           type: f.type,
-          arrayBuffer: () => f.arrayBuffer()
+          arrayBuffer: () => f.arrayBuffer(),
         }));
         imageIds = await uploadFiles(filesData);
       } else if (imageIds.length === 0) {
-        if (payloadJson) {
+        if (payloadCustom) {
+          try { imageIds = JSON.parse(payloadCustom); } catch (_) {}
+        } else if (payloadJson) {
           try { imageIds = JSON.parse(payloadJson); } catch (_) {}
         } else if (payloadText && payloadText !== 'gallery-image') {
-          imageIds = payloadText.split(',');
+          imageIds = payloadText.split(',').filter(Boolean);
         }
       }
 
       if (imageIds.length === 0) return;
 
-      const regionId = findRegionAtPos(e.clientX, e.clientY);
-      if (!regionId) return;
-
       const currentPageIndex = useCalendarStore.getState().editor.activePageIndex;
       const currentPage = useCalendarStore.getState().project.pages[currentPageIndex];
-      if (!currentPage) return;
+      if (!currentPage || !currentPage.imageRegions || currentPage.imageRegions.length === 0) return;
+
+      let regionId = findRegionAtPos(e.clientX, e.clientY);
+      if (!regionId) {
+        if (currentPage.imageRegions.length === 1) {
+          regionId = currentPage.imageRegions[0].id;
+        } else {
+          regionId = findClosestRegionAtPos(e.clientX, e.clientY);
+        }
+      }
+      if (!regionId) return;
 
       const droppedRegionIndex = currentPage.imageRegions.findIndex((r: any) => r.id === regionId);
       if (droppedRegionIndex < 0) return;
@@ -332,20 +331,22 @@ const CalendarCanvas: React.FC = () => {
       console.error('Drop error', err);
     } finally {
       setDragOverRegionId(null);
-      // Clean up dragged image IDs from store
+      setIsDragOverCanvas(false);
       useCalendarStore.getState().setDraggedImageIds(null);
-      disableOverlay();
     }
   };
 
-  // Whether a gallery drag is currently in progress — combine both the
-  // synchronous ref-based flag and the async Zustand state for robustness.
-  const isDraggingFromGallery = htmlDragActive || (!!draggedImageIds && draggedImageIds.length > 0);
+  const isDragging = isDragOverCanvas || (!!draggedImageIds && draggedImageIds.length > 0);
 
   return (
     <div
+      ref={canvasWrapperRef}
       className="canvas-wrapper"
       style={{ position: 'relative' }}
+      onDragOver={handleCanvasDragOver}
+      onDragEnter={handleCanvasDragEnter}
+      onDragLeave={handleCanvasDragLeave}
+      onDrop={handleCanvasDrop}
     >
       <Stage
         ref={stageRef}
@@ -582,59 +583,66 @@ const CalendarCanvas: React.FC = () => {
         </Layer>
       </Stage>
 
-      {/* HTML overlay for drag-and-drop — sits on top of the Konva canvas.
-          Starts with pointer-events:none; the document-level dragenter listener
-          enables it synchronously via direct DOM mutation before React re-renders.
-          The `style` below is the React-managed fallback; the ref-based direct
-          mutation in enableOverlay/disableOverlay takes precedence. */}
-      <div
-        ref={overlayRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: dims.totalW,
-          height: dims.totalH,
-          pointerEvents: isDraggingFromGallery ? 'all' : 'none',
-          zIndex: isDraggingFromGallery ? 10 : -1,
-        }}
-        onDragOver={handleOverlayDragOver}
-        onDragEnter={(e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'copy';
-          // Also enable overlay here as a secondary guard
-          enableOverlay();
-        }}
-        onDragLeave={handleOverlayDragLeave}
-        onDrop={handleOverlayDrop}
-      >
-        {/* Render drop-target highlight rectangles for each image region */}
-        {isDraggingFromGallery && page.imageRegions.map((r: any) => {
-          const rx = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
-          const ry = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
-          const rw = toCanvasPx(r.mask.widthMm, canvasScale);
-          const rh = toCanvasPx(r.mask.heightMm, canvasScale);
-          const isHovered = dragOverRegionId === r.id;
-          return (
-            <div
-              key={r.id}
-              style={{
-                position: 'absolute',
-                left: rx,
-                top: ry,
-                width: rw,
-                height: rh,
-                border: isHovered ? '3px solid #0a84ff' : '2px dashed rgba(10, 132, 255, 0.4)',
-                background: isHovered ? 'rgba(10, 132, 255, 0.18)' : 'transparent',
-                borderRadius: 4,
-                transition: 'background 0.15s, border 0.15s',
-                pointerEvents: 'none', // Let events pass to parent overlay
-                boxSizing: 'border-box',
-              }}
-            />
-          );
-        })}
-      </div>
+      {/* HTML overlay for drag-and-drop slots */}
+      {isDragging && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: dims.totalW,
+            height: dims.totalH,
+            pointerEvents: 'none',
+            zIndex: 25,
+          }}
+        >
+          {page.imageRegions.map((r: any) => {
+            const rx = dims.originX + toCanvasPx(r.mask.xMm, canvasScale);
+            const ry = dims.originY + toCanvasPx(r.mask.yMm, canvasScale);
+            const rw = toCanvasPx(r.mask.widthMm, canvasScale);
+            const rh = toCanvasPx(r.mask.heightMm, canvasScale);
+            const isHovered = dragOverRegionId === r.id;
+            return (
+              <div
+                key={r.id}
+                style={{
+                  position: 'absolute',
+                  left: rx,
+                  top: ry,
+                  width: rw,
+                  height: rh,
+                  border: isHovered ? '3px solid #0070f3' : '2px dashed rgba(0, 112, 243, 0.65)',
+                  backgroundColor: isHovered ? 'rgba(0, 112, 243, 0.28)' : 'rgba(0, 112, 243, 0.08)',
+                  boxShadow: isHovered ? '0 0 20px rgba(0, 112, 243, 0.5)' : 'none',
+                  borderRadius: r.mask.shape === 'rounded-rectangle' ? toCanvasPx(r.mask.borderRadiusMm || 4, canvasScale) : 4,
+                  transition: 'background-color 0.15s, border 0.15s, box-shadow 0.15s',
+                  pointerEvents: 'none',
+                  boxSizing: 'border-box',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    background: isHovered ? '#0070f3' : 'rgba(0, 0, 0, 0.65)',
+                    color: '#ffffff',
+                    padding: '6px 14px',
+                    borderRadius: 20,
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                    fontSize: Math.max(12, Math.round(14 * canvasScale)),
+                    fontWeight: 600,
+                    letterSpacing: '0.3px',
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {isHovered ? '📥 Soltar imagen aquí' : 'Hueco de foto'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

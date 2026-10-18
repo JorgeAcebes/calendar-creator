@@ -2,14 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCalendarStore } from '@/store/calendarStore';
 import { Calendar, Plus, Copy, Trash2, ArrowRight } from 'lucide-react';
-import type { CalendarProject } from '@calendar-creator/shared-types';
+import { listProjects, saveProjectData, deleteProjectData, duplicateProjectData, type ProjectListItem } from '@/utils/projectStorage';
 
-interface ProjectListItem {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 /* ── inline styles (no Tailwind — pure CSS) ────────────────────────────── */
 
@@ -309,34 +303,11 @@ const Dashboard: React.FC = () => {
   const loadProjects = async () => {
     setLoading(true);
     try {
-      const { readDir, readTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-      try {
-        const entries = await readDir('projects', { baseDir: BaseDirectory.AppData });
-        const loadedProjects: ProjectListItem[] = [];
-        for (const entry of entries) {
-          if (entry.name && entry.name.endsWith('.json')) {
-            try {
-              const data = await readTextFile(`projects/${entry.name}`, { baseDir: BaseDirectory.AppData });
-              const proj = JSON.parse(data);
-              loadedProjects.push({
-                id: proj.id,
-                name: proj.name,
-                createdAt: proj.createdAt || new Date().toISOString(),
-                updatedAt: proj.updatedAt || new Date().toISOString()
-              });
-            } catch (e) {
-              console.error('Error parsing', entry.name, e);
-            }
-          }
-        }
-        loadedProjects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-        setProjects(loadedProjects);
-      } catch (e) {
-        console.error('No appdata dir found or error reading', e);
-        setProjects([]);
-      }
+      const loadedProjects = await listProjects();
+      setProjects(loadedProjects);
     } catch (e) {
       console.error('Failed to load projects', e);
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -346,9 +317,7 @@ const Dashboard: React.FC = () => {
     initProject(newProjectName, newProjectYear, 'es-ES');
     const newProject = useCalendarStore.getState().project;
     try {
-      const { writeTextFile, BaseDirectory, mkdir } = await import('@tauri-apps/plugin-fs');
-      try { await mkdir('projects', { baseDir: BaseDirectory.AppData, recursive: true }); } catch (e) {}
-      await writeTextFile(`projects/${newProject.id}.json`, JSON.stringify(newProject), { baseDir: BaseDirectory.AppData });
+      await saveProjectData(newProject);
       navigate(`/editor/${newProject.id}`);
     } catch (e: any) {
       console.error(e);
@@ -362,8 +331,7 @@ const Dashboard: React.FC = () => {
     e.stopPropagation();
     if (!confirm('¿Seguro que deseas eliminar este proyecto de forma permanente?')) return;
     try {
-      const { remove, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-      await remove(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
+      await deleteProjectData(id);
       loadProjects();
     } catch (e) { console.error(e); }
   };
@@ -371,12 +339,7 @@ const Dashboard: React.FC = () => {
   const handleDuplicateProject = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      const { readTextFile, writeTextFile, BaseDirectory } = await import('@tauri-apps/plugin-fs');
-      const data = await readTextFile(`projects/${id}.json`, { baseDir: BaseDirectory.AppData });
-      const parsedData: CalendarProject = JSON.parse(data);
-      parsedData.name = `${parsedData.name} (Copia)`;
-      parsedData.id = crypto.randomUUID();
-      await writeTextFile(`projects/${parsedData.id}.json`, JSON.stringify(parsedData), { baseDir: BaseDirectory.AppData });
+      await duplicateProjectData(id);
       loadProjects();
     } catch (e) { console.error(e); }
   };

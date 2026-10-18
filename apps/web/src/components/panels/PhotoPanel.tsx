@@ -4,8 +4,7 @@
 
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Trash2, Upload, AlertTriangle, Heart, CheckCircle2, CheckSquare, X, CheckCheck } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Trash2, Upload, AlertTriangle, CheckCircle2, CheckSquare, X, CheckCheck } from 'lucide-react';
 import { useCalendarStore } from '@/store/calendarStore';
 import { showToast } from '@/components/layout/Toast';
 import { uploadFiles, type FileData } from '@/utils/uploadHelpers';
@@ -29,7 +28,6 @@ function findAllImageUsages(imageId: string, pages: any[]): string[] {
 }
 
 const PhotoPanel: React.FC = () => {
-  const navigate = useNavigate();
   const project = useCalendarStore((s) => s.project);
   const images = project.images;
   const pages = project.pages;
@@ -136,12 +134,8 @@ const PhotoPanel: React.FC = () => {
     setDraggedImageIds(idsToDrag);
     e.dataTransfer.setData('text/plain', idsToDrag.join(','));
     e.dataTransfer.setData('application/json', JSON.stringify(idsToDrag));
+    e.dataTransfer.setData('calendar-creator/image-ids', JSON.stringify(idsToDrag));
     e.dataTransfer.effectAllowed = 'copy';
-    
-    // Configurar imagen fantasma (ghost) transparente
-    const ghostImg = new Image();
-    ghostImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; // transparent pixel
-    e.dataTransfer.setDragImage(ghostImg, 0, 0);
   };
 
   const handleDragEnd = () => {
@@ -194,17 +188,6 @@ const PhotoPanel: React.FC = () => {
           </div>
         </div>
       )}
-
-      <div className="panel-section" style={{ paddingBottom: 0, borderBottom: 'none' }}>
-        <button 
-          className="btn" 
-          style={{ width: '100%', background: 'linear-gradient(135deg, var(--color-secondary), #ff6b81)', borderColor: 'transparent', color: '#fff', fontWeight: 600 }}
-          onClick={() => navigate('/donate')}
-        >
-          <Heart size={14} fill="currentColor" />
-          Donar
-        </button>
-      </div>
 
       <div className="panel-section">
         <div className="panel-section__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -339,12 +322,17 @@ const PhotoPanel: React.FC = () => {
                   onDragStart={(e) => handleDragStart(e, img.id)}
                   onDragEnd={handleDragEnd}
                   title={`${img.originalFilename}\n${img.widthPx}×${img.heightPx}px\n${(img.fileSizeBytes / 1024 / 1024).toFixed(1)} MB${used ? `\n\n📌 En uso: ${usageStr}` : ''}`}
-                  style={isSelected ? { outline: '3px solid var(--color-primary)' } : {}}
+                  style={{
+                    cursor: 'grab',
+                    userSelect: 'none',
+                    ...(isSelected ? { outline: '3px solid var(--color-primary)' } : {}),
+                  }}
                 >
                   <img
                     src={img.previewDataUrl ?? img.thumbnailPath}
                     alt={img.originalFilename}
                     draggable={false}
+                    style={{ pointerEvents: 'none', userSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}
                   />
                   {used && !isSelected && (
                     <div style={{ 
@@ -353,13 +341,14 @@ const PhotoPanel: React.FC = () => {
                       padding: '1px 6px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
                       display: 'flex', alignItems: 'center', gap: 3,
                       fontSize: 10, color: '#2ed573', fontWeight: 600,
+                      pointerEvents: 'none',
                     }}>
                       <CheckCircle2 size={11} color="#2ed573" />
                       {usages.length > 1 ? `×${usages.length}` : ''}
                     </div>
                   )}
                   {isSelected && (
-                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--color-primary)', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                    <div style={{ position: 'absolute', top: 4, left: 4, background: 'var(--color-primary)', borderRadius: '50%', padding: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.3)', pointerEvents: 'none' }}>
                       <CheckSquare size={14} color="#fff" />
                     </div>
                   )}
@@ -370,12 +359,15 @@ const PhotoPanel: React.FC = () => {
                       left: 3,
                       fontSize: '8px',
                       padding: '1px 4px',
+                      pointerEvents: 'none',
                     }}>
                       BAJA RES
                     </span>
                   )}
                   <button
                     className="btn btn--ghost btn--icon"
+                    draggable={false}
+                    onMouseDown={(e) => e.stopPropagation()}
                     style={{
                       position: 'absolute',
                       top: 2,
@@ -386,6 +378,7 @@ const PhotoPanel: React.FC = () => {
                       background: 'rgba(0,0,0,0.5)',
                       border: 'none',
                       borderRadius: '50%',
+                      cursor: 'pointer',
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
