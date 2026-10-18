@@ -6,7 +6,7 @@
 // =============================================================================
 
 import React, { useMemo } from 'react';
-import { Group, Text, Line } from 'react-konva';
+import { Group, Text, Line, Rect } from 'react-konva';
 import type {
   CalendarGridConfig,
   DefaultTypography,
@@ -16,6 +16,7 @@ import type {
 import { mmToPx } from '@calendar-creator/shared-types';
 import { useCalendarDates } from '@/hooks/useCalendarDates';
 import { getFontFamilyWithFallback } from '@/config/fonts';
+import { useCalendarStore } from '@/store/calendarStore';
 
 interface CalendarGridProps {
   /** Grid configuration from the page */
@@ -203,7 +204,45 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
           if (!day.isCurrentMonth) dayColor = typo.dayNumbers.color + '30'; // 30 = ~18% opacity hex
 
           return (
-            <Group key={`day-${rowIdx}-${colIdx}`}>
+            <Group
+              key={`day-${rowIdx}-${colIdx}`}
+              onClick={() => {
+                if (!day.isCurrentMonth) return;
+                const store = useCalendarStore.getState();
+                store.setSelectedDayForAnnotation(day.day);
+                store.setActiveTab('notes');
+              }}
+              onTap={() => {
+                if (!day.isCurrentMonth) return;
+                const store = useCalendarStore.getState();
+                store.setSelectedDayForAnnotation(day.day);
+                store.setActiveTab('notes');
+              }}
+              onMouseEnter={(e) => {
+                if (day.isCurrentMonth) {
+                  const stage = e.target.getStage();
+                  if (stage) stage.container().style.cursor = 'pointer';
+                }
+              }}
+              onMouseLeave={(e) => {
+                const stage = e.target.getStage();
+                if (stage) stage.container().style.cursor = 'default';
+              }}
+            >
+              {/* Day background highlight if annotated */}
+              {annotation && (
+                <Rect
+                  x={cellX + 1}
+                  y={cellY + 1}
+                  width={colWidth - 2}
+                  height={rowHeight - 2}
+                  fill={`${annotation.color}18`}
+                  stroke={`${annotation.color}50`}
+                  strokeWidth={1}
+                  cornerRadius={3}
+                />
+              )}
+
               {/* Day number */}
               <Text
                 x={cellX + padding}

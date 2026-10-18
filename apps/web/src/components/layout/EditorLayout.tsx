@@ -34,7 +34,8 @@ const EditorLayout: React.FC = () => {
   const [loading, setLoading] = useState(id !== 'new');
   const [sidebarWidth, setSidebarWidth] = useState(320); // resizable left sidebar
   const [panelWidth, setPanelWidth] = useState(360); // generous right panel to eliminate horizontal scroll
-  const [activeTab, setActiveTab] = useState<RightPanelTab>('design');
+  const activeTab: RightPanelTab = useCalendarStore((s) => s.editor.activeTab ?? 'design');
+  const setActiveTab = useCalendarStore((s) => s.setActiveTab);
   const hasAutoFittedRef = useRef(false);
 
   // Load project from storage (Tauri AppData or IndexedDB/localStorage in browser)

@@ -48,6 +48,10 @@ interface EditorState {
   draggedImageIds: string[] | null;
   /** Region ID being hovered during a gallery drag */
   dragOverRegionId: string | null;
+  /** Selected day in calendar grid for notes/annotations */
+  selectedDayForAnnotation: number | null;
+  /** Active sidebar tab in editor */
+  activeTab: 'design' | 'typography' | 'notes';
 }
 
 export interface CalendarStoreState {
@@ -115,6 +119,8 @@ export interface CalendarStoreActions {
   setDayAnnotation: (pageIndex: number, annotation: DayAnnotation) => void;
   /** Remove a day annotation */
   removeDayAnnotation: (pageIndex: number, day: number) => void;
+  /** Clear all day annotations for a page */
+  clearAllDayAnnotations: (pageIndex: number) => void;
 
   // --- Grid Config Actions ---
   /** Update calendar grid configuration for a page */
@@ -142,6 +148,10 @@ export interface CalendarStoreActions {
   setDraggedImageIds: (ids: string[] | null) => void;
   /** Set drag over region ID */
   setDragOverRegionId: (regionId: string | null) => void;
+  /** Select day for annotation editing */
+  setSelectedDayForAnnotation: (day: number | null) => void;
+  /** Set active editor tab */
+  setActiveTab: (tab: 'design' | 'typography' | 'notes') => void;
 
   // --- Auto Actions ---
   /** Randomly fill empty image regions with uploaded images */
@@ -308,6 +318,8 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         offsetStepMm: 1,
         draggedImageIds: null,
         dragOverRegionId: null,
+        selectedDayForAnnotation: null,
+        activeTab: 'design',
       },
 
       // --- Project Actions ---
@@ -607,11 +619,12 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page?.calendarGrid) return;
-          const existing = page.calendarGrid.annotations.findIndex((a: any) => a.day === annotation.day);
+          const ann = { ...annotation, day: Number(annotation.day) };
+          const existing = page.calendarGrid.annotations.findIndex((a: any) => Number(a.day) === ann.day);
           if (existing >= 0) {
-            page.calendarGrid.annotations[existing] = annotation;
+            page.calendarGrid.annotations[existing] = ann;
           } else {
-            page.calendarGrid.annotations.push(annotation);
+            page.calendarGrid.annotations.push(ann);
           }
           state.project.updatedAt = new Date().toISOString();
         });
@@ -621,7 +634,16 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         set((state) => {
           const page = state.project.pages[pageIndex];
           if (!page?.calendarGrid) return;
-          page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a: any) => a.day !== day);
+          page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a: any) => Number(a.day) !== Number(day));
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      clearAllDayAnnotations: (pageIndex) => {
+        set((state) => {
+          const page = state.project.pages[pageIndex];
+          if (!page?.calendarGrid) return;
+          page.calendarGrid.annotations = [];
           state.project.updatedAt = new Date().toISOString();
         });
       },
@@ -687,6 +709,18 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       setDragOverRegionId: (regionId) => {
         set((state) => {
           state.editor.dragOverRegionId = regionId;
+        });
+      },
+
+      setSelectedDayForAnnotation: (day) => {
+        set((state) => {
+          state.editor.selectedDayForAnnotation = day;
+        });
+      },
+
+      setActiveTab: (tab) => {
+        set((state) => {
+          state.editor.activeTab = tab;
         });
       },
 

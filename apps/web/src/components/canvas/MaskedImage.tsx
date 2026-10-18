@@ -7,7 +7,8 @@
 // Clicking on a placed image selects it. A delete button appears on selection.
 // =============================================================================
 
-import React from 'react';
+import React, { useRef, useCallback, useLayoutEffect } from 'react';
+import type Konva from 'konva';
 import { Group, Image as KonvaImage, Rect, Circle, Path } from 'react-konva';
 import type { ImageRegion } from '@calendar-creator/shared-types';
 import { computeImagePlacement, mmToPx } from '@calendar-creator/shared-types';
@@ -38,6 +39,22 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
   const images = useCalendarStore((s) => s.project.images);
   const paper = useCalendarStore((s) => s.project.globalSettings.paperDimensions);
   const isSelected = selectedRegionId === region.id;
+  const deleteBtnRef = useRef<Konva.Group>(null);
+
+  const bringDeleteButtonToTop = useCallback(() => {
+    if (deleteBtnRef.current) {
+      deleteBtnRef.current.moveToTop();
+      deleteBtnRef.current.getLayer()?.batchDraw();
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (isSelected) {
+      bringDeleteButtonToTop();
+      const raf = requestAnimationFrame(bringDeleteButtonToTop);
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [isSelected, region.id, region.imageFileId, bringDeleteButtonToTop]);
 
   // Get the image data
   const imageData = region.imageFileId ? images[region.imageFileId] : null;
@@ -157,6 +174,7 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
         onDragStart={(e) => {
           selectRegion(region.id);
           e.target.moveToTop();
+          bringDeleteButtonToTop();
           e.target.opacity(0.7);
         }}
         onDragMove={() => {
@@ -164,12 +182,17 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
         }}
         onDragEnd={(e) => {
           e.target.opacity(1);
-          const stage = e.target.getStage();
-          const pos = stage?.getPointerPosition();
-          
           // Reset visually to original spot immediately
           e.target.x(0);
           e.target.y(0);
+          
+          // Crucial: ensure delete button is placed on top even if left in same spot!
+          bringDeleteButtonToTop();
+          requestAnimationFrame(bringDeleteButtonToTop);
+          setTimeout(bringDeleteButtonToTop, 50);
+
+          const stage = e.target.getStage();
+          const pos = stage?.getPointerPosition();
           
           if (!pos) return;
           
@@ -258,13 +281,22 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
       {/* Delete button — rendered OUTSIDE the clip group so it's always visible */}
       {isSelected && (
         <Group
+          ref={deleteBtnRef}
           onClick={(e) => {
             e.cancelBubble = true;
             clearImage(activePageIndex, region.id);
+            showToast({
+              type: 'info',
+              message: 'Foto eliminada del hueco',
+            });
           }}
           onTap={(e) => {
             e.cancelBubble = true;
             clearImage(activePageIndex, region.id);
+            showToast({
+              type: 'info',
+              message: 'Foto eliminada del hueco',
+            });
           }}
           onMouseEnter={(e) => {
             const stage = e.target.getStage();
@@ -275,14 +307,25 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
             if (stage) stage.container().style.cursor = 'default';
           }}
         >
+          {/* Subtle background glow / halo for contrast on light or dark photos */}
+          <Circle
+            x={btnX}
+            y={btnY}
+            radius={btnRadius + 3}
+            fill="rgba(0, 0, 0, 0.4)"
+          />
+          {/* Red trash button circle */}
           <Circle
             x={btnX}
             y={btnY}
             radius={btnRadius}
-            fill="rgba(255, 69, 58, 0.9)"
-            shadowColor="rgba(0,0,0,0.4)"
-            shadowBlur={4}
-            shadowOffsetY={1}
+            fill="#e74c3c"
+            stroke="#ffffff"
+            strokeWidth={Math.max(1.5, 2 * canvasScale)}
+            shadowColor="rgba(0,0,0,0.5)"
+            shadowBlur={6}
+            shadowOffsetY={2}
+            hitStrokeWidth={12}
           />
           {/* Trash icon (Lucide Trash2 standard SVG path) */}
           <Path
