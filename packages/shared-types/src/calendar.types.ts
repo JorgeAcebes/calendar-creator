@@ -173,6 +173,8 @@ export interface GlobalSettings {
   holidayFillBackground?: boolean;
   /** Background color for holiday cells (hex) */
   holidayBackgroundColor?: string;
+  /** Text and number color for holiday cells (hex) */
+  holidayColor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -281,6 +283,8 @@ export interface CalendarGridConfig {
   holidayFillBackground?: boolean;
   /** Background color for holiday cells (hex) */
   holidayBackgroundColor?: string;
+  /** Text and number color for holiday cells (hex) */
+  holidayColor?: string;
 }
 
 // ---------------------------------------------------------------------------

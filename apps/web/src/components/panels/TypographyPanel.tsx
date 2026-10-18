@@ -377,10 +377,10 @@ const TypographyPanel: React.FC = () => {
         }}>
           <span style={{ fontSize: '11px', fontWeight: 700, color: '#ff453a', display: 'flex', alignItems: 'center', gap: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             <Palette size={12} />
-            Color domingos y festivos
+            Color domingos
           </span>
           <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)' }}>
-            Días no laborables
+            Número de los domingos
           </span>
         </div>
 

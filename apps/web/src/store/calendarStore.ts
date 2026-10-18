@@ -107,12 +107,13 @@ export interface CalendarStoreActions {
   applySpanishHolidays: (includeNational: boolean, provinceId?: string, holidayColor?: string) => void;
   /** Clear automated Spanish holidays from all pages */
   clearSpanishHolidays: () => void;
-  /** Update holiday text position, fill background, and background color */
+  /** Update holiday text position, fill background, background color, and holiday text/number color */
   setHolidayStyle: (
     style: {
       textPosition?: 'top' | 'middle' | 'bottom';
       fillBackground?: boolean;
       backgroundColor?: string;
+      holidayColor?: string;
     },
     applyGlobally?: boolean,
     pageIndex?: number
@@ -246,6 +247,7 @@ function createDefaultSettings(): GlobalSettings {
     holidayTextPosition: 'bottom',
     holidayFillBackground: false,
     holidayBackgroundColor: '#ffebee',
+    holidayColor: '#ff453a',
   };
 }
 
@@ -319,6 +321,7 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
             holidayTextPosition: 'bottom',
             holidayFillBackground: false,
             holidayBackgroundColor: '#ffebee',
+            holidayColor: '#ff453a',
             annotations: [],
           }
         : null,
@@ -806,17 +809,20 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         });
       },
 
-      applySpanishHolidays: (includeNational, provinceId, holidayColor = '#e74c3c') => {
+      applySpanishHolidays: (includeNational, provinceId, holidayColor) => {
         set((state) => {
           const year = state.project.year;
           state.project.globalSettings.includeNationalHolidays = includeNational;
           state.project.globalSettings.holidayProvince = provinceId;
+          const activeHolidayColor = holidayColor ?? state.project.globalSettings.holidayColor ?? '#ff453a';
+          state.project.globalSettings.holidayColor = activeHolidayColor;
 
           const allHolidays = getAllHolidaysForYear(year, includeNational, provinceId);
 
           state.project.pages.forEach((page) => {
             if (page.type === 'month' && page.month && page.calendarGrid) {
               const grid = page.calendarGrid;
+              grid.holidayColor = activeHolidayColor;
               // 1. Remove previous automated holidays (keep custom user annotations)
               grid.annotations = grid.annotations.filter((a: any) => !a.isHoliday);
 
@@ -827,7 +833,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
                 const holidayAnnotation: DayAnnotation = {
                   day: h.day,
                   text: h.name,
-                  color: holidayColor,
+                  color: activeHolidayColor,
                   fontSizePt: 7,
                   fontFamily: 'Inter',
                   icon: '🔴',
@@ -837,6 +843,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
                 if (existingIndex >= 0) {
                   grid.annotations[existingIndex].isHoliday = true;
                   grid.annotations[existingIndex].holidayType = h.type;
+                  grid.annotations[existingIndex].color = activeHolidayColor;
                 } else {
                   grid.annotations.push(holidayAnnotation);
                 }
@@ -871,6 +878,9 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
           if (style.backgroundColor !== undefined) {
             state.project.globalSettings.holidayBackgroundColor = style.backgroundColor;
           }
+          if (style.holidayColor !== undefined) {
+            state.project.globalSettings.holidayColor = style.holidayColor;
+          }
 
           if (applyGlobally) {
             state.project.pages.forEach((page) => {
@@ -878,6 +888,12 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
                 if (style.textPosition !== undefined) page.calendarGrid.holidayTextPosition = style.textPosition;
                 if (style.fillBackground !== undefined) page.calendarGrid.holidayFillBackground = style.fillBackground;
                 if (style.backgroundColor !== undefined) page.calendarGrid.holidayBackgroundColor = style.backgroundColor;
+                if (style.holidayColor !== undefined) {
+                  page.calendarGrid.holidayColor = style.holidayColor;
+                  page.calendarGrid.annotations.forEach((a: any) => {
+                    if (a.isHoliday) a.color = style.holidayColor;
+                  });
+                }
               }
             });
           } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
@@ -885,6 +901,12 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
             if (style.textPosition !== undefined) grid.holidayTextPosition = style.textPosition;
             if (style.fillBackground !== undefined) grid.holidayFillBackground = style.fillBackground;
             if (style.backgroundColor !== undefined) grid.holidayBackgroundColor = style.backgroundColor;
+            if (style.holidayColor !== undefined) {
+              grid.holidayColor = style.holidayColor;
+              grid.annotations.forEach((a: any) => {
+                if (a.isHoliday) a.color = style.holidayColor;
+              });
+            }
           }
           state.project.updatedAt = new Date().toISOString();
         });

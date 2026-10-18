@@ -238,12 +238,19 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
           const padding = (typo.dayNumbers.cellPaddingPx?.top ?? 4) * canvasScale;
           const annotation = day.isCurrentMonth ? annotationMap.get(day.day) : undefined;
 
+          const isHoliday = !!annotation?.isHoliday;
+          const holidayColor = config.holidayColor ?? globalSettings.holidayColor ?? '#ff453a';
+
           let dayColor = typo.dayNumbers.color;
-          if (day.isSunday || annotation?.isHoliday) dayColor = typo.dayNumbers.sundayColor;
-          else if (day.isSaturday && typo.dayNumbers.saturdayColor) dayColor = typo.dayNumbers.saturdayColor;
+          if (isHoliday) {
+            dayColor = holidayColor;
+          } else if (day.isSunday) {
+            dayColor = typo.dayNumbers.sundayColor;
+          } else if (day.isSaturday && typo.dayNumbers.saturdayColor) {
+            dayColor = typo.dayNumbers.saturdayColor;
+          }
           if (!day.isCurrentMonth) dayColor = typo.dayNumbers.color + '30'; // 30 = ~18% opacity hex
 
-          const isHoliday = !!annotation?.isHoliday;
           const textPos = isHoliday
             ? (config.holidayTextPosition ?? globalSettings.holidayTextPosition ?? 'bottom')
             : (annotation?.textPosition ?? 'bottom');
@@ -331,7 +338,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
                   text={`${annotation.icon ?? ''} ${annotation.text}`.trim()}
                   fontFamily={getFontFamilyWithFallback(annotation.fontFamily ?? typo.dayNumbers.fontFamily)}
                   fontSize={(annotation.fontSizePt ?? 7) * canvasScale * 3.5}
-                  fill={annotation.color}
+                  fill={isHoliday ? holidayColor : annotation.color}
                   align="center"
                   verticalAlign={annVAlign}
                   wrap="word"

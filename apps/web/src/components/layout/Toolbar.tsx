@@ -27,6 +27,7 @@ import PdfRenderer from '../pdf/PdfRenderer';
 
 import { useStore } from 'zustand';
 import { useTranslation } from '@/hooks/useTranslation';
+import { saveProjectData } from '@/utils/projectStorage';
 
 const LOCALE_OPTIONS: { value: Locale; label: string }[] = [
   { value: 'es-ES', label: '🇪🇸 Español' },
@@ -73,8 +74,18 @@ const Toolbar: React.FC = () => {
 
   return (
     <div className="toolbar">
-      {/* Brand */}
-      <div className="toolbar__brand">
+      {/* Brand — Click takes back to Dashboard (Home) */}
+      <div
+        className="toolbar__brand"
+        onClick={() => {
+          if (project.id) {
+            saveProjectData(project).catch(console.error);
+          }
+          navigate('/');
+        }}
+        style={{ cursor: 'pointer', userSelect: 'none' }}
+        title="Volver a la página principal (mis calendarios)"
+      >
         <div className="toolbar__brand-icon">
           <Calendar size={16} color="#fff" />
         </div>

@@ -32,6 +32,7 @@ const AnnotationPanel: React.FC = () => {
   const globalHolidayTextPos = useCalendarStore((s) => s.project.globalSettings.holidayTextPosition ?? 'bottom');
   const globalHolidayFillBg = useCalendarStore((s) => s.project.globalSettings.holidayFillBackground ?? false);
   const globalHolidayBgColor = useCalendarStore((s) => s.project.globalSettings.holidayBackgroundColor ?? '#ffebee');
+  const globalHolidayColor = useCalendarStore((s) => s.project.globalSettings.holidayColor ?? '#ff453a');
 
   const [selectedDay, setSelectedDay] = useState<number>(selectedDayStore || 1);
   const [text, setText] = useState('');
@@ -255,6 +256,68 @@ const AnnotationPanel: React.FC = () => {
             flexDirection: 'column',
             gap: '10px'
           }}>
+            {/* Holiday Color (text and number) */}
+            <div>
+              <label className="input-label" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
+                Color de los días festivos (número y texto)
+              </label>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(0, 0, 0, 0.2)',
+                border: '1px solid rgba(255, 69, 58, 0.25)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '6px 10px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <input
+                    type="color"
+                    className="input-color"
+                    value={applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor)}
+                    onChange={(e) => setHolidayStyle({ holidayColor: e.target.value }, applyHolidayGlobally, activePageIndex)}
+                    style={{ width: 28, height: 24, borderRadius: 4, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                    {(applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor)).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Preset swatches */}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {[
+                    { hex: '#ff453a', name: 'Rojo vibrante' },
+                    { hex: '#e63946', name: 'Carmesí' },
+                    { hex: '#b91c1c', name: 'Granate' },
+                    { hex: '#d97706', name: 'Ámbar' },
+                    { hex: '#3b82f6', name: 'Azul' },
+                    { hex: '#10b981', name: 'Verde' },
+                    { hex: '#8b5cf6', name: 'Púrpura' },
+                  ].map((swatch) => {
+                    const currentColor = applyHolidayGlobally ? globalHolidayColor : (page.calendarGrid?.holidayColor ?? globalHolidayColor);
+                    const isSelected = currentColor.toLowerCase() === swatch.hex.toLowerCase();
+                    return (
+                      <button
+                        key={swatch.hex}
+                        type="button"
+                        onClick={() => setHolidayStyle({ holidayColor: swatch.hex }, applyHolidayGlobally, activePageIndex)}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: 4,
+                          background: swatch.hex,
+                          border: isSelected ? '2px solid white' : '1px solid rgba(255,255,255,0.2)',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                        title={swatch.name}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Text Position */}
             <div>
               <label className="input-label" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>

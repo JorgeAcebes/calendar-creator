@@ -689,6 +689,12 @@ body {
   font-size: var(--text-lg);
   letter-spacing: var(--tracking-tight);
   color: var(--color-text-primary);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.toolbar__brand:hover {
+  opacity: 0.85;
+  transform: translateY(-0.5px);
 }
 
 .toolbar__brand-icon {
