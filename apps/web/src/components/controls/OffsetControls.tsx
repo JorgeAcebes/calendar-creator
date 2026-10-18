@@ -59,12 +59,10 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
 
   if (!hasImage) {
     return (
-      <div className="panel-section animate-fade-in">
-        <div className="panel-section__header">
-          <span className="panel-section__title">Imagen</span>
-        </div>
-        <p style={{ color: 'var(--color-text-tertiary)', fontSize: 'var(--text-sm)' }}>
-          Arrastra una foto desde el panel izquierdo a esta zona del lienzo.
+      <div className="panel-section animate-fade-in" style={{ padding: '12px 16px' }}>
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: '12px', lineHeight: 1.5, margin: 0 }}>
+          🖼️ <strong>Hueco seleccionado</strong><br />
+          Arrastra una foto desde la galería lateral o haz clic en una foto para colocarla en esta ranura.
         </p>
       </div>
     );
@@ -73,13 +71,51 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
   return (
     <div className="panel-section animate-fade-in">
       <div className="panel-section__header">
-        <span className="panel-section__title">Posición de imagen</span>
+        <span className="panel-section__title">Ajuste de imagen</span>
         <button
           className="btn btn--ghost btn--sm btn--icon tooltip"
-          data-tooltip="Eliminar imagen"
+          data-tooltip="Quitar imagen"
           onClick={() => clearImage(pageIndex, regionId)}
         >
           <Trash2 size={14} />
+        </button>
+      </div>
+
+      {/* Helpful Hint */}
+      <div style={{
+        padding: '8px 12px',
+        marginBottom: '12px',
+        background: 'rgba(10, 132, 255, 0.08)',
+        borderRadius: 'var(--radius-sm)',
+        fontSize: '11px',
+        color: 'var(--color-text-secondary)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+      }}>
+        <span>💡</span>
+        <span>Arrastra la foto directamente en el lienzo para encuadrarla y usa la rueda del ratón para zoom.</span>
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
+        <button
+          className="btn btn--sm btn--ghost"
+          style={{ flex: 1, fontSize: '11px' }}
+          onClick={resetTransform}
+          title="Centrar foto y resetear escala a 100%"
+        >
+          <RotateCcw size={12} style={{ marginRight: 4 }} />
+          Restablecer
+        </button>
+        <button
+          className="btn btn--sm btn--ghost"
+          style={{ fontSize: '11px', color: 'var(--color-danger)' }}
+          onClick={() => clearImage(pageIndex, regionId)}
+          title="Quitar foto de esta ranura"
+        >
+          <Trash2 size={12} style={{ marginRight: 4 }} />
+          Quitar
         </button>
       </div>
 

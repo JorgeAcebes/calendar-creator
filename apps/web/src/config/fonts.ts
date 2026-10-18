@@ -92,3 +92,14 @@ export function getFontOption(family: string): FontOption | undefined {
 export function getFontWeights(family: string): number[] {
   return getFontOption(family)?.weights ?? [400];
 }
+
+/**
+ * Returns a robust font stack with offline system fallbacks for canvas and web rendering.
+ */
+export function getFontFamilyWithFallback(family: string): string {
+  const option = getFontOption(family);
+  if (option?.category === 'serif') {
+    return `"${family}", Georgia, Cambria, "Times New Roman", Times, serif`;
+  }
+  return `"${family}", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+}

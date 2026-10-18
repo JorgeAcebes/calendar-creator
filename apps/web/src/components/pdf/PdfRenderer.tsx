@@ -68,25 +68,32 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
       try {
         if (!stageRef.current) return;
         
-        await new Promise(r => setTimeout(r, 1000));
+        // Wait for Konva stage to finish painting layers
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(resolve, 60);
+            });
+          });
+        });
         
         if (!mounted || isGeneratingRef.current) return;
         if (currentPageIndex === project.pages.length - 1) {
           isGeneratingRef.current = true;
         }
 
-        // Preview: Low DPI (72) and lower quality
+        // Preview: Low DPI (72 DPI) - stage is already at 300 DPI, so ratio is 72/300
         const previewDataUrl = stageRef.current.toDataURL({
-          pixelRatio: 1,
+          pixelRatio: 72 / 300,
           mimeType: 'image/jpeg',
-          quality: 0.6
+          quality: 0.65
         });
 
-        // Print: High DPI (300) and high quality
+        // Print: True 300 DPI - stage is already at 300 DPI, so ratio is exactly 1
         const printDataUrl = stageRef.current.toDataURL({
-          pixelRatio: 300 / 72,
+          pixelRatio: 1,
           mimeType: 'image/jpeg',
-          quality: 0.95
+          quality: 0.92
         });
 
         const pdfWidth = paperDimensions.widthMm + bleed.leftMm + bleed.rightMm;
@@ -97,8 +104,8 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
           pdfPrint.addPage([pdfWidth, pdfHeight], project.globalSettings.paperDimensions.orientation);
         }
 
-        pdfPreview.addImage(previewDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        pdfPrint.addImage(printDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        pdfPreview.addImage(previewDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        pdfPrint.addImage(printDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
 
         onProgress(currentPageIndex + 1, project.pages.length);
 

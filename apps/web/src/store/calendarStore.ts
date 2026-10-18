@@ -24,6 +24,8 @@ import type {
   CalendarGridConfig,
 } from '@calendar-creator/shared-types';
 import { getLayoutTemplate, getLayoutsForPageType } from '@/config/layouts';
+import { imagePreviewDataCache } from '@/utils/imageCache';
+export { imagePreviewDataCache };
 
 // ---------------------------------------------------------------------------
 // Store State Interface
@@ -318,6 +320,13 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       },
 
       loadProject: (project) => {
+        if (project.images) {
+          Object.values(project.images).forEach((img: any) => {
+            if (img.previewDataUrl) {
+              imagePreviewDataCache.set(img.id, img.previewDataUrl);
+            }
+          });
+        }
         set((state) => {
           state.project = project;
           state.editor.activePageIndex = 0;
@@ -486,6 +495,9 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
 
       // --- Image Actions ---
       addImage: (image) => {
+        if (image.previewDataUrl) {
+          imagePreviewDataCache.set(image.id, image.previewDataUrl);
+        }
         set((state) => {
           state.project.images[image.id] = image;
           state.project.updatedAt = new Date().toISOString();
@@ -493,6 +505,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       },
 
       removeImage: (imageId) => {
+        imagePreviewDataCache.delete(imageId);
         set((state) => {
           delete state.project.images[imageId];
           state.project.pages.forEach((page) => {
@@ -745,7 +758,22 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
     })),
     {
       limit: 30,
-      partialize: (state) => ({ project: state.project }),
+      partialize: (state) => {
+        // Strip heavy base64 strings from history snapshots to prevent memory leak
+        const slimImages: Record<string, UploadedImage> = {};
+        for (const [id, img] of Object.entries(state.project.images || {})) {
+          slimImages[id] = {
+            ...img,
+            previewDataUrl: '',
+          };
+        }
+        return {
+          project: {
+            ...state.project,
+            images: slimImages,
+          },
+        };
+      },
     }
   )
 );

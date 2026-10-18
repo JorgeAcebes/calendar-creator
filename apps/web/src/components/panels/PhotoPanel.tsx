@@ -5,7 +5,7 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Trash2, Upload, AlertTriangle, CheckCircle2, CheckSquare, X, CheckCheck } from 'lucide-react';
-import { useCalendarStore } from '@/store/calendarStore';
+import { useCalendarStore, imagePreviewDataCache } from '@/store/calendarStore';
 import { showToast } from '@/components/layout/Toast';
 import { uploadFiles, type FileData } from '@/utils/uploadHelpers';
 
@@ -329,7 +329,7 @@ const PhotoPanel: React.FC = () => {
                   }}
                 >
                   <img
-                    src={img.previewDataUrl ?? img.thumbnailPath}
+                    src={img.previewDataUrl || imagePreviewDataCache.get(img.id) || img.thumbnailPath}
                     alt={img.originalFilename}
                     draggable={false}
                     style={{ pointerEvents: 'none', userSelect: 'none', WebkitUserDrag: 'none' } as React.CSSProperties}

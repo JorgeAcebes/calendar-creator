@@ -14,6 +14,7 @@ import MaskedImage from './MaskedImage';
 import CalendarGrid from './CalendarGrid';
 import { showToast } from '@/components/layout/Toast';
 import { uploadFiles } from '@/utils/uploadHelpers';
+import { getFontFamilyWithFallback } from '@/config/fonts';
 
 function toCanvasPx(mm: number, scale: number): number {
   return mmToPx(mm, 300) * scale;
@@ -472,7 +473,7 @@ const CalendarCanvas: React.FC = () => {
                 y={0}
                 width={dims.paperW}
                 text={page.coverText.title}
-                fontFamily={page.coverText.fontFamily}
+                fontFamily={getFontFamilyWithFallback(page.coverText.fontFamily)}
                 fontSize={page.coverText.fontSizePt * canvasScale * 3.5}
                 fontStyle="bold"
                 fill={page.coverText.color}
@@ -487,7 +488,7 @@ const CalendarCanvas: React.FC = () => {
                   y={page.coverText.fontSizePt * canvasScale * 4}
                   width={dims.paperW}
                   text={page.coverText.subtitle}
-                  fontFamily={page.coverText.fontFamily}
+                  fontFamily={getFontFamilyWithFallback(page.coverText.fontFamily)}
                   fontSize={page.coverText.fontSizePt * canvasScale * 2}
                   fill={page.coverText.color}
                   align="center"

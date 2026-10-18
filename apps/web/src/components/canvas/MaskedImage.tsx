@@ -8,11 +8,11 @@
 // =============================================================================
 
 import React from 'react';
-import { Group, Image as KonvaImage, Rect, Circle, Path } from 'react-konva';
+import { Group, Image as KonvaImage, Rect, Circle, Path, Text as KonvaText } from 'react-konva';
 import type { ImageRegion } from '@calendar-creator/shared-types';
-import { computeImagePlacement, mmToPx } from '@calendar-creator/shared-types';
+import { computeImagePlacement, mmToPx, pxToMm } from '@calendar-creator/shared-types';
 import { useImageLoader } from '@/hooks/useImageLoader';
-import { useCalendarStore } from '@/store/calendarStore';
+import { useCalendarStore, imagePreviewDataCache } from '@/store/calendarStore';
 
 interface MaskedImageProps {
   /** The image region data from the store */
@@ -33,13 +33,19 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
   const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
   const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
   const clearImage = useCalendarStore((s) => s.clearImageFromRegion);
+  const updateTransform = useCalendarStore((s) => s.updateImageTransform);
   const images = useCalendarStore((s) => s.project.images);
   const paper = useCalendarStore((s) => s.project.globalSettings.paperDimensions);
   const isSelected = selectedRegionId === region.id;
 
   // Get the image data
   const imageData = region.imageFileId ? images[region.imageFileId] : null;
-  const imageSrc = imageData?.previewDataUrl ?? imageData?.storagePath ?? null;
+  const imageSrc =
+    (imageData?.previewDataUrl && imageData.previewDataUrl.length > 0)
+      ? imageData.previewDataUrl
+      : (region.imageFileId ? imagePreviewDataCache.get(region.imageFileId) : null)
+      ?? imageData?.storagePath
+      ?? null;
   const loadedImage = useImageLoader(imageSrc);
 
   // Calculate effective mask if clipped to safe area
@@ -146,7 +152,7 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
         }}
         onClick={handleClick}
         onTap={handleClick}
-        draggable={true}
+        draggable={!isSelected}
         onDragStart={(e) => {
           selectRegion(region.id);
           e.target.moveToTop();
@@ -187,15 +193,41 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
           }
         }}
       >
-        {/* The actual photo — NEVER draggable, but LISTENING for clicks */}
+        {/* The actual photo — draggable when selected for intuitive direct framing */}
         <KonvaImage
           image={loadedImage}
           x={imgX}
           y={imgY}
           width={imgW}
           height={imgH}
-          draggable={false}
+          draggable={isSelected}
           listening={true}
+          onDragStart={(e) => {
+            e.cancelBubble = true;
+          }}
+          onDragEnd={(e) => {
+            e.cancelBubble = true;
+            // Compute displacement in mm
+            const dxPx = e.target.x() - imgX;
+            const dyPx = e.target.y() - imgY;
+            const dxMm = pxToMm(dxPx, 300) / canvasScale;
+            const dyMm = pxToMm(dyPx, 300) / canvasScale;
+            updateTransform(activePageIndex, region.id, {
+              offsetXMm: Math.round((region.transform.offsetXMm + dxMm) * 10) / 10,
+              offsetYMm: Math.round((region.transform.offsetYMm + dyMm) * 10) / 10,
+            });
+            // Reset node position back to origin so transform state drives it
+            e.target.x(imgX);
+            e.target.y(imgY);
+          }}
+          onWheel={(e) => {
+            if (!isSelected) return;
+            e.evt.preventDefault();
+            const delta = e.evt.deltaY < 0 ? 0.05 : -0.05;
+            const currentScale = region.transform.scale || 1;
+            const newScale = Math.max(0.5, Math.min(3, Math.round((currentScale + delta) * 100) / 100));
+            updateTransform(activePageIndex, region.id, { scale: newScale });
+          }}
         />
 
         {/* Hover overlay — clickable area matching the full mask */}
@@ -211,14 +243,42 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
           cornerRadius={region.mask.shape === 'rounded-rectangle' ? toCanvasPx(region.mask.borderRadiusMm, canvasScale) : 0}
           onMouseEnter={(e) => {
             const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'pointer';
+            if (stage) stage.container().style.cursor = isSelected ? 'move' : 'pointer';
           }}
           onMouseLeave={(e) => {
             const stage = e.target.getStage();
             if (stage) stage.container().style.cursor = 'default';
           }}
+          onWheel={(e) => {
+            if (!isSelected) return;
+            e.evt.preventDefault();
+            const delta = e.evt.deltaY < 0 ? 0.05 : -0.05;
+            const currentScale = region.transform.scale || 1;
+            const newScale = Math.max(0.5, Math.min(3, Math.round((currentScale + delta) * 100) / 100));
+            updateTransform(activePageIndex, region.id, { scale: newScale });
+          }}
         />
       </Group>
+
+      {/* Interactive Helper Badge when selected */}
+      {isSelected && (
+        <Group x={maskX + 6} y={maskY + 6} listening={false}>
+          <Rect
+            width={Math.min(maskW - 12, 185)}
+            height={20}
+            fill="rgba(18, 18, 26, 0.85)"
+            cornerRadius={4}
+          />
+          <KonvaText
+            x={6}
+            y={5}
+            text="✋ Arrastra / Rueda para zoom"
+            fontSize={10}
+            fontFamily="system-ui, -apple-system, sans-serif"
+            fill="#ffffff"
+          />
+        </Group>
+      )}
 
       {/* Delete button — rendered OUTSIDE the clip group so it's always visible */}
       {isSelected && (

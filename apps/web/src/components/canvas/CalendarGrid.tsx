@@ -15,6 +15,7 @@ import type {
 } from '@calendar-creator/shared-types';
 import { mmToPx } from '@calendar-creator/shared-types';
 import { useCalendarDates } from '@/hooks/useCalendarDates';
+import { getFontFamilyWithFallback } from '@/config/fonts';
 
 interface CalendarGridProps {
   /** Grid configuration from the page */
@@ -108,7 +109,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
         width={gridW}
         height={headerHeight}
         text={monthText}
-        fontFamily={typo.monthHeader.fontFamily}
+        fontFamily={getFontFamilyWithFallback(typo.monthHeader.fontFamily)}
         fontStyle={typo.monthHeader.fontWeight >= 700 ? 'bold' : typo.monthHeader.fontWeight >= 500 ? '500' : 'normal'}
         fontSize={headerFontSize}
         fill={typo.monthHeader.color}
@@ -136,7 +137,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
             width={colWidth}
             height={dayNamesHeight}
             text={dayText}
-            fontFamily={typo.dayNames.fontFamily}
+            fontFamily={getFontFamilyWithFallback(typo.dayNames.fontFamily)}
             fontStyle={typo.dayNames.fontWeight >= 600 ? 'bold' : 'normal'}
             fontSize={dayNamesFontSize}
             fill={typo.dayNames.color}
@@ -210,7 +211,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
                 width={colWidth - padding * 2}
                 height={rowHeight - padding * 2}
                 text={String(day.day)}
-                fontFamily={typo.dayNumbers.fontFamily}
+                fontFamily={getFontFamilyWithFallback(typo.dayNumbers.fontFamily)}
                 fontStyle={typo.dayNumbers.fontWeight >= 600 ? 'bold' : 'normal'}
                 fontSize={dayNumbersFontSize}
                 fill={dayColor}
@@ -226,7 +227,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
                   width={colWidth - padding * 2}
                   height={rowHeight - dayNumbersFontSize * 1.6 - padding * 2}
                   text={`${annotation.icon ?? ''} ${annotation.text}`.trim()}
-                  fontFamily={annotation.fontFamily ?? typo.dayNumbers.fontFamily}
+                  fontFamily={getFontFamilyWithFallback(annotation.fontFamily ?? typo.dayNumbers.fontFamily)}
                   fontSize={(annotation.fontSizePt ?? 7) * canvasScale * 3.5}
                   fill={annotation.color}
                   align="center"
@@ -250,7 +251,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
             width={colWidth}
             height={rowHeight}
             text={String(week[0].weekNumber)}
-            fontFamily={typo.dayNumbers.fontFamily}
+            fontFamily={getFontFamilyWithFallback(typo.dayNumbers.fontFamily)}
             fontSize={dayNumbersFontSize * 0.75}
             fill={typo.dayNumbers.color}
             align="center"
