@@ -177,11 +177,57 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
           bringDeleteButtonToTop();
           e.target.opacity(0.7);
         }}
-        onDragMove={() => {
-          // Keep visually dragging
+        onDragMove={(e) => {
+          const dragDx = e.target.x();
+          const dragDy = e.target.y();
+          const state = useCalendarStore.getState();
+          const page = state.project.pages[activePageIndex];
+          if (!page || !page.imageRegions) return;
+
+          const draggedBox = {
+            x: maskX + dragDx,
+            y: maskY + dragDy,
+            w: maskW,
+            h: maskH,
+          };
+          const draggedArea = draggedBox.w * draggedBox.h;
+
+          let candidateId: string | null = null;
+          let maxOverlap = 0;
+
+          for (const r of page.imageRegions as any[]) {
+            if (r.id === region.id) continue;
+            const rx = toCanvasPx(r.mask.xMm, canvasScale);
+            const ry = toCanvasPx(r.mask.yMm, canvasScale);
+            const rw = toCanvasPx(r.mask.widthMm, canvasScale);
+            const rh = toCanvasPx(r.mask.heightMm, canvasScale);
+
+            const ix1 = Math.max(draggedBox.x, rx);
+            const iy1 = Math.max(draggedBox.y, ry);
+            const ix2 = Math.min(draggedBox.x + draggedBox.w, rx + rw);
+            const iy2 = Math.min(draggedBox.y + draggedBox.h, ry + rh);
+
+            const iw = Math.max(0, ix2 - ix1);
+            const ih = Math.max(0, iy2 - iy1);
+            const interArea = iw * ih;
+            const minArea = Math.min(draggedArea, rw * rh);
+            const overlapRatio = minArea > 0 ? interArea / minArea : 0;
+
+            if (overlapRatio >= 0.35 && overlapRatio > maxOverlap) {
+              maxOverlap = overlapRatio;
+              candidateId = r.id;
+            }
+          }
+
+          if (state.editor.dragOverRegionId !== candidateId) {
+            state.setDragOverRegionId(candidateId);
+          }
         }}
         onDragEnd={(e) => {
           e.target.opacity(1);
+          const dragDx = e.target.x();
+          const dragDy = e.target.y();
+
           // Reset visually to original spot immediately
           e.target.x(0);
           e.target.y(0);
@@ -191,53 +237,54 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
           requestAnimationFrame(bringDeleteButtonToTop);
           setTimeout(bringDeleteButtonToTop, 50);
 
-          const stage = e.target.getStage();
-          const pos = stage?.getPointerPosition();
-          
-          if (!pos) return;
-          
           const state = useCalendarStore.getState();
+          state.setDragOverRegionId(null);
+
           const page = state.project.pages[activePageIndex];
-          const bleed = state.project.globalSettings.bleed;
-          
-          const originX = mmToPx(bleed.leftMm, 300) * canvasScale;
-          const originY = mmToPx(bleed.topMm, 300) * canvasScale;
-          
-          // 1. Direct hit test within region mask boundaries
-          let targetRegion = page.imageRegions.find((r: any) => {
-            if (r.id === region.id) return false; // don't drop on self
-            const rx = originX + mmToPx(r.mask.xMm, 300) * canvasScale;
-            const ry = originY + mmToPx(r.mask.yMm, 300) * canvasScale;
-            const rw = mmToPx(r.mask.widthMm, 300) * canvasScale;
-            const rh = mmToPx(r.mask.heightMm, 300) * canvasScale;
-            return pos.x >= rx && pos.x <= rx + rw && pos.y >= ry && pos.y <= ry + rh;
-          });
-          
-          // 2. Proximity fallback: nearest slot if dropped slightly near
-          if (!targetRegion) {
-            let closestDist = Infinity;
-            let closest: any = null;
-            for (const r of page.imageRegions as any[]) {
-              if (r.id === region.id) continue;
-              const rx = originX + mmToPx(r.mask.xMm, 300) * canvasScale;
-              const ry = originY + mmToPx(r.mask.yMm, 300) * canvasScale;
-              const rw = mmToPx(r.mask.widthMm, 300) * canvasScale;
-              const rh = mmToPx(r.mask.heightMm, 300) * canvasScale;
-              const cx = rx + rw / 2;
-              const cy = ry + rh / 2;
-              const dist = Math.hypot(pos.x - cx, pos.y - cy);
-              if (dist < closestDist && dist < Math.max(rw, rh)) {
-                closestDist = dist;
-                closest = r;
-              }
+          if (!page || !page.imageRegions) return;
+
+          const draggedBox = {
+            x: maskX + dragDx,
+            y: maskY + dragDy,
+            w: maskW,
+            h: maskH,
+          };
+          const draggedArea = draggedBox.w * draggedBox.h;
+
+          let bestCandidate: any = null;
+          let maxOverlapRatio = 0;
+
+          for (const r of page.imageRegions as any[]) {
+            if (r.id === region.id) continue;
+            const rx = toCanvasPx(r.mask.xMm, canvasScale);
+            const ry = toCanvasPx(r.mask.yMm, canvasScale);
+            const rw = toCanvasPx(r.mask.widthMm, canvasScale);
+            const rh = toCanvasPx(r.mask.heightMm, canvasScale);
+            const candidateArea = rw * rh;
+
+            const ix1 = Math.max(draggedBox.x, rx);
+            const iy1 = Math.max(draggedBox.y, ry);
+            const ix2 = Math.min(draggedBox.x + draggedBox.w, rx + rw);
+            const iy2 = Math.min(draggedBox.y + draggedBox.h, ry + rh);
+
+            const iw = Math.max(0, ix2 - ix1);
+            const ih = Math.max(0, iy2 - iy1);
+            const interArea = iw * ih;
+
+            const minArea = Math.min(draggedArea, candidateArea);
+            const overlapRatio = minArea > 0 ? interArea / minArea : 0;
+
+            // Require at least 35% overlap for a solid swap/move
+            if (overlapRatio >= 0.35 && overlapRatio > maxOverlapRatio) {
+              maxOverlapRatio = overlapRatio;
+              bestCandidate = r;
             }
-            targetRegion = closest;
           }
-          
-          if (targetRegion) {
-            const willSwap = !!targetRegion.imageFileId;
-            state.swapImagesBetweenRegions(activePageIndex, region.id, targetRegion.id);
-            selectRegion(targetRegion.id);
+
+          if (bestCandidate) {
+            const willSwap = !!bestCandidate.imageFileId;
+            state.swapImagesBetweenRegions(activePageIndex, region.id, bestCandidate.id);
+            selectRegion(bestCandidate.id);
             showToast({
               type: 'success',
               message: willSwap ? 'Fotos intercambiadas' : 'Foto movida a la casilla vacía',

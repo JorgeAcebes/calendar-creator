@@ -153,6 +153,16 @@ export interface GlobalSettings {
   removeImageGaps?: boolean;
   /** Margin reserved for ring binder / spiral (in mm, applied at top) */
   bindingMarginMm?: number;
+  /** Global setting: include year next to month name */
+  includeYear?: boolean;
+  /** Global setting: use shortened day names */
+  shortDayNames?: boolean;
+  /** Global setting: clip photos to safe area */
+  clipToSafeArea?: boolean;
+  /** Selected Spanish province ID for regional holidays */
+  holidayProvince?: string;
+  /** Whether national Spanish holidays are marked */
+  includeNationalHolidays?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +229,10 @@ export interface DayAnnotation {
   fontSizePt: number;
   /** Optional emoji/icon */
   icon?: string;
+  /** Whether this annotation represents an official holiday */
+  isHoliday?: boolean;
+  /** Type of holiday */
+  holidayType?: 'national' | 'provincial';
 }
 
 export interface CalendarGridConfig {

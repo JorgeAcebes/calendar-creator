@@ -2,11 +2,12 @@
 // OffsetControls — Arrow-based image positioning (No free drag!)
 // =============================================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, RotateCcw, ZoomIn, Trash2 } from 'lucide-react';
 import type { ImageTransform } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { showToast } from '@/components/layout/Toast';
 
 interface OffsetControlsProps {
   regionId: string;
@@ -24,10 +25,11 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
   clipToSafeArea,
 }) => {
   const updateTransform = useCalendarStore((s) => s.updateImageTransform);
-  const setClipToSafe = useCalendarStore((s) => s.setRegionClipToSafe);
+  const setGlobalClipToSafe = useCalendarStore((s) => s.setGlobalClipToSafe);
   const clearImage = useCalendarStore((s) => s.clearImageFromRegion);
   const stepMm = useCalendarStore((s) => s.editor.offsetStepMm);
   const setOffsetStep = useCalendarStore((s) => s.setOffsetStepMm);
+  const [applyGlobally, setApplyGlobally] = useState(true);
 
   const move = (dx: number, dy: number) => {
     updateTransform(pageIndex, regionId, {
@@ -214,17 +216,42 @@ const OffsetControls: React.FC<OffsetControlsProps> = ({
       </div>
 
       {/* Clip to Safe Area Toggle */}
-      <div className="input-group" style={{ marginTop: 'var(--space-4)', flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
-        <input
-          type="checkbox"
-          id={`clip-${regionId}`}
-          checked={!!clipToSafeArea}
-          onChange={(e) => setClipToSafe(pageIndex, regionId, e.target.checked)}
-          style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-        />
-        <label htmlFor={`clip-${regionId}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer' }}>
-          Limitar foto a la zona segura
-        </label>
+      <div style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-glass-border)', paddingTop: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-2)' }}>
+          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            Zona segura
+          </span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)' }}>
+            <input
+              type="checkbox"
+              checked={applyGlobally}
+              onChange={(e) => setApplyGlobally(e.target.checked)}
+              style={{ width: 13, height: 13, accentColor: '#0a84ff', cursor: 'pointer' }}
+            />
+            <span>Aplicar a todas las fotos (por defecto)</span>
+          </label>
+        </div>
+
+        <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <input
+            type="checkbox"
+            id={`clip-${regionId}`}
+            checked={!!clipToSafeArea}
+            onChange={(e) => {
+              setGlobalClipToSafe(e.target.checked, applyGlobally, pageIndex, regionId);
+              showToast({
+                type: 'info',
+                message: applyGlobally
+                  ? (e.target.checked ? 'Todas las fotos limitadas a la zona segura' : 'Límite de zona segura desactivado en todo el calendario')
+                  : (e.target.checked ? 'Foto limitada a la zona segura' : 'Límite de zona segura desactivado en esta foto'),
+              });
+            }}
+            style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+          />
+          <label htmlFor={`clip-${regionId}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
+            Limitar foto a la zona segura (5mm del corte)
+          </label>
+        </div>
       </div>
     </div>
   );

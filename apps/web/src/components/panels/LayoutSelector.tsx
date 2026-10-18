@@ -2,18 +2,22 @@
 // LayoutSelector — Choose layout template for the active page
 // =============================================================================
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Layout } from 'lucide-react';
 import type { LayoutTemplateId } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { getLayoutsForPageType } from '@/config/layouts';
+import { showToast } from '@/components/layout/Toast';
 
 const LayoutSelector: React.FC = () => {
   const activePage = useCalendarStore((s) => s.project.pages[s.editor.activePageIndex]);
   const paper = useCalendarStore((s) => s.project.globalSettings.paperDimensions);
   const setPageLayout = useCalendarStore((s) => s.setPageLayout);
-  const updateGridConfig = useCalendarStore((s) => s.updateGridConfig);
+  const setGlobalIncludeYear = useCalendarStore((s) => s.setGlobalIncludeYear);
+  const setGlobalShortDayNames = useCalendarStore((s) => s.setGlobalShortDayNames);
+  const setGlobalShowGridLines = useCalendarStore((s) => s.setGlobalShowGridLines);
   const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
+  const [applyGlobally, setApplyGlobally] = useState(true);
 
   if (!activePage) return null;
   const layouts = getLayoutsForPageType(activePage.type, paper, useCalendarStore((s) => s.project.globalSettings.removeImageGaps));
@@ -135,41 +139,76 @@ const LayoutSelector: React.FC = () => {
       </p>
 
       {activePage.calendarGrid && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-4)' }}>
-          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <input
-              type="checkbox"
-              id={`grid-toggle-${activePageIndex}`}
-              checked={activePage.calendarGrid.showGridLines}
-              onChange={(e) => updateGridConfig(activePageIndex, { showGridLines: e.target.checked })}
-              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
-            />
-            <label htmlFor={`grid-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Mostrar líneas de la rejilla
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-glass-border)', paddingTop: 'var(--space-3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-1)' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Opciones de cuadrícula
+            </span>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)' }}>
+              <input
+                type="checkbox"
+                checked={applyGlobally}
+                onChange={(e) => setApplyGlobally(e.target.checked)}
+                style={{ width: 13, height: 13, accentColor: '#0a84ff', cursor: 'pointer' }}
+              />
+              <span>Aplicar a todo (por defecto)</span>
             </label>
           </div>
+
           <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
               id={`year-toggle-${activePageIndex}`}
               checked={activePage.calendarGrid.includeYear !== false}
-              onChange={(e) => updateGridConfig(activePageIndex, { includeYear: e.target.checked })}
+              onChange={(e) => {
+                setGlobalIncludeYear(e.target.checked, applyGlobally, activePageIndex);
+                showToast({
+                  type: 'info',
+                  message: applyGlobally
+                    ? (e.target.checked ? 'Año incluido en todos los meses' : 'Año ocultado en todos los meses')
+                    : (e.target.checked ? 'Año incluido en este mes' : 'Año ocultado en este mes'),
+                });
+              }}
               style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
             />
             <label htmlFor={`year-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Incluir Año
+              Incluir año al lado del mes
             </label>
           </div>
+
           <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
             <input
               type="checkbox"
               id={`short-day-toggle-${activePageIndex}`}
               checked={activePage.calendarGrid.shortDayNames !== false}
-              onChange={(e) => updateGridConfig(activePageIndex, { shortDayNames: e.target.checked })}
+              onChange={(e) => {
+                setGlobalShortDayNames(e.target.checked, applyGlobally, activePageIndex);
+                showToast({
+                  type: 'info',
+                  message: applyGlobally
+                    ? (e.target.checked ? 'Días acortados en todo el calendario' : 'Nombres completos de días en todo el calendario')
+                    : (e.target.checked ? 'Días acortados en este mes' : 'Nombres completos en este mes'),
+                });
+              }}
               style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
             />
             <label htmlFor={`short-day-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
-              Nombres de días acortados
+              Nombres de días acortados (L, M, X...)
+            </label>
+          </div>
+
+          <div className="input-group" style={{ flexDirection: 'row', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <input
+              type="checkbox"
+              id={`grid-toggle-${activePageIndex}`}
+              checked={activePage.calendarGrid.showGridLines}
+              onChange={(e) => {
+                setGlobalShowGridLines(e.target.checked, applyGlobally, activePageIndex);
+              }}
+              style={{ width: 16, height: 16, accentColor: 'var(--color-accent)', cursor: 'pointer' }}
+            />
+            <label htmlFor={`grid-toggle-${activePageIndex}`} className="input-label" style={{ marginBottom: 0, cursor: 'pointer', textTransform: 'none' }}>
+              Mostrar líneas de la rejilla
             </label>
           </div>
         </div>

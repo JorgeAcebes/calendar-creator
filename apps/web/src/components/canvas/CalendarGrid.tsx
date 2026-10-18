@@ -199,7 +199,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
           const annotation = day.isCurrentMonth ? annotationMap.get(day.day) : undefined;
 
           let dayColor = typo.dayNumbers.color;
-          if (day.isSunday) dayColor = typo.dayNumbers.sundayColor;
+          if (day.isSunday || annotation?.isHoliday) dayColor = typo.dayNumbers.sundayColor;
           else if (day.isSaturday && typo.dayNumbers.saturdayColor) dayColor = typo.dayNumbers.saturdayColor;
           if (!day.isCurrentMonth) dayColor = typo.dayNumbers.color + '30'; // 30 = ~18% opacity hex
 

@@ -179,13 +179,26 @@ const TypoSection: React.FC<TypoSectionProps> = ({
 };
 
 const TypographyPanel: React.FC = () => {
+  const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
   const typography = useCalendarStore((s) => s.project.globalSettings.defaultTypography);
   const setTypography = useCalendarStore((s) => s.setDefaultTypography);
+  const [applyGlobally, setApplyGlobally] = React.useState(true);
+
+  const update = (typo: any) => setTypography(typo, applyGlobally, activePageIndex);
 
   return (
     <div className="panel-section">
-      <div className="panel-section__header">
+      <div className="panel-section__header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span className="panel-section__title">Tipografía</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', cursor: 'pointer', color: applyGlobally ? '#0a84ff' : 'var(--color-text-tertiary)' }}>
+          <input
+            type="checkbox"
+            checked={applyGlobally}
+            onChange={(e) => setApplyGlobally(e.target.checked)}
+            style={{ width: 13, height: 13, accentColor: '#0a84ff', cursor: 'pointer' }}
+          />
+          <span>Aplicar a todo (por defecto)</span>
+        </label>
       </div>
 
       {/* Month Header */}
@@ -196,11 +209,11 @@ const TypographyPanel: React.FC = () => {
         fontSizePt={typography.monthHeader.fontSizePt}
         color={typography.monthHeader.color}
         textTransform={typography.monthHeader.textTransform}
-        onFontFamily={(v) => setTypography({ monthHeader: { ...typography.monthHeader, fontFamily: v } })}
-        onFontWeight={(v) => setTypography({ monthHeader: { ...typography.monthHeader, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
-        onFontSize={(v) => setTypography({ monthHeader: { ...typography.monthHeader, fontSizePt: v } })}
-        onColor={(v) => setTypography({ monthHeader: { ...typography.monthHeader, color: v } })}
-        onTextTransform={(v) => setTypography({ monthHeader: { ...typography.monthHeader, textTransform: v as 'none' | 'uppercase' | 'capitalize' } })}
+        onFontFamily={(v) => update({ monthHeader: { ...typography.monthHeader, fontFamily: v } })}
+        onFontWeight={(v) => update({ monthHeader: { ...typography.monthHeader, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
+        onFontSize={(v) => update({ monthHeader: { ...typography.monthHeader, fontSizePt: v } })}
+        onColor={(v) => update({ monthHeader: { ...typography.monthHeader, color: v } })}
+        onTextTransform={(v) => update({ monthHeader: { ...typography.monthHeader, textTransform: v as 'none' | 'uppercase' | 'capitalize' } })}
       />
 
       {/* Day Names */}
@@ -211,11 +224,11 @@ const TypographyPanel: React.FC = () => {
         fontSizePt={typography.dayNames.fontSizePt}
         color={typography.dayNames.color}
         textTransform={typography.dayNames.textTransform}
-        onFontFamily={(v) => setTypography({ dayNames: { ...typography.dayNames, fontFamily: v } })}
-        onFontWeight={(v) => setTypography({ dayNames: { ...typography.dayNames, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
-        onFontSize={(v) => setTypography({ dayNames: { ...typography.dayNames, fontSizePt: v } })}
-        onColor={(v) => setTypography({ dayNames: { ...typography.dayNames, color: v } })}
-        onTextTransform={(v) => setTypography({ dayNames: { ...typography.dayNames, textTransform: v as 'none' | 'uppercase' | 'capitalize' } })}
+        onFontFamily={(v) => update({ dayNames: { ...typography.dayNames, fontFamily: v } })}
+        onFontWeight={(v) => update({ dayNames: { ...typography.dayNames, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
+        onFontSize={(v) => update({ dayNames: { ...typography.dayNames, fontSizePt: v } })}
+        onColor={(v) => update({ dayNames: { ...typography.dayNames, color: v } })}
+        onTextTransform={(v) => update({ dayNames: { ...typography.dayNames, textTransform: v as 'none' | 'uppercase' | 'capitalize' } })}
       />
 
       {/* Day Numbers */}
@@ -227,24 +240,24 @@ const TypographyPanel: React.FC = () => {
         color={typography.dayNumbers.color}
         textAlign={typography.dayNumbers.textAlign}
         verticalAlign={typography.dayNumbers.verticalAlign}
-        onFontFamily={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, fontFamily: v } })}
-        onFontWeight={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
-        onFontSize={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, fontSizePt: v } })}
-        onColor={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, color: v } })}
-        onTextAlign={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, textAlign: v as 'left' | 'center' | 'right' } })}
-        onVerticalAlign={(v) => setTypography({ dayNumbers: { ...typography.dayNumbers, verticalAlign: v as 'top' | 'middle' | 'bottom' } })}
+        onFontFamily={(v) => update({ dayNumbers: { ...typography.dayNumbers, fontFamily: v } })}
+        onFontWeight={(v) => update({ dayNumbers: { ...typography.dayNumbers, fontWeight: v as 300 | 400 | 500 | 600 | 700 } })}
+        onFontSize={(v) => update({ dayNumbers: { ...typography.dayNumbers, fontSizePt: v } })}
+        onColor={(v) => update({ dayNumbers: { ...typography.dayNumbers, color: v } })}
+        onTextAlign={(v) => update({ dayNumbers: { ...typography.dayNumbers, textAlign: v as 'left' | 'center' | 'right' } })}
+        onVerticalAlign={(v) => update({ dayNumbers: { ...typography.dayNumbers, verticalAlign: v as 'top' | 'middle' | 'bottom' } })}
       />
 
       {/* Sunday color */}
       <div className="panel-section__row" style={{ marginTop: 'var(--space-2)' }}>
         <div className="input-group" style={{ flex: 1 }}>
-          <label className="input-label">Color domingos</label>
+          <label className="input-label">Color domingos y festivos</label>
           <input
             type="color"
             className="input-color"
             value={typography.dayNumbers.sundayColor}
             onChange={(e) =>
-              setTypography({ dayNumbers: { ...typography.dayNumbers, sundayColor: e.target.value } })
+              update({ dayNumbers: { ...typography.dayNumbers, sundayColor: e.target.value } })
             }
           />
         </div>

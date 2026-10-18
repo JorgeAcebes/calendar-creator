@@ -337,7 +337,7 @@ const CalendarCanvas: React.FC = () => {
     }
   };
 
-  const isDragging = isDragOverCanvas || (!!draggedImageIds && draggedImageIds.length > 0);
+  const isDragging = isDragOverCanvas || (!!draggedImageIds && draggedImageIds.length > 0) || !!dragOverRegionId;
 
   return (
     <div

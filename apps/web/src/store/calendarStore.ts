@@ -25,6 +25,7 @@ import type {
 } from '@calendar-creator/shared-types';
 import { getLayoutTemplate, getLayoutsForPageType } from '@/config/layouts';
 import { imagePreviewDataCache } from '@/utils/imageCache';
+import { getAllHolidaysForYear } from '@/utils/spanishHolidays';
 export { imagePreviewDataCache };
 
 // ---------------------------------------------------------------------------
@@ -82,13 +83,27 @@ export interface CalendarStoreActions {
   /** Update paper dimensions */
   setPaperDimensions: (dims: PaperDimensions) => void;
   /** Update global typography */
-  setDefaultTypography: (typo: Partial<DefaultTypography>) => void;
+  setDefaultTypography: (typo: Partial<DefaultTypography>, applyGlobally?: boolean, pageIndex?: number) => void;
   /** Update global background color */
   setBackgroundColor: (color: string) => void;
   /** Set warn on duplicate photos */
   setWarnOnDuplicatePhotos: (warn: boolean) => void;
   /** Set remove image gaps */
   setRemoveImageGaps: (remove: boolean) => void;
+
+  // --- Global Grid & Safety Toggles ---
+  /** Update includeYear globally (default) or for single page */
+  setGlobalIncludeYear: (includeYear: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
+  /** Update shortDayNames globally (default) or for single page */
+  setGlobalShortDayNames: (shortDayNames: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
+  /** Update showGridLines globally (default) or for single page */
+  setGlobalShowGridLines: (showGridLines: boolean, applyGlobally?: boolean, pageIndex?: number) => void;
+  /** Update clipToSafeArea globally (default) or for single region */
+  setGlobalClipToSafe: (clip: boolean, applyGlobally?: boolean, pageIndex?: number, regionId?: string) => void;
+  /** Apply Spanish national and provincial public holidays to all calendar pages */
+  applySpanishHolidays: (includeNational: boolean, provinceId?: string, holidayColor?: string) => void;
+  /** Clear automated Spanish holidays from all pages */
+  clearSpanishHolidays: () => void;
 
   // --- Page Actions ---
   /** Set the active page */
@@ -209,6 +224,11 @@ function createDefaultSettings(): GlobalSettings {
     warnOnDuplicatePhotos: true,
     removeImageGaps: false,
     bindingMarginMm: 10,
+    includeYear: true,
+    shortDayNames: true,
+    clipToSafeArea: false,
+    includeNationalHolidays: false,
+    holidayProvince: undefined,
   };
 }
 
@@ -277,6 +297,7 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
             showWeekNumbers: false,
             showGridLines: true,
             includeYear: true,
+            shortDayNames: true,
             annotations: [],
           }
         : null,
@@ -396,16 +417,32 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         });
       },
 
-      setDefaultTypography: (typo) => {
+      setDefaultTypography: (typo, applyGlobally = true, pageIndex) => {
         set((state) => {
-          if (typo.monthHeader) {
-            Object.assign(state.project.globalSettings.defaultTypography.monthHeader, typo.monthHeader);
-          }
-          if (typo.dayNames) {
-            Object.assign(state.project.globalSettings.defaultTypography.dayNames, typo.dayNames);
-          }
-          if (typo.dayNumbers) {
-            Object.assign(state.project.globalSettings.defaultTypography.dayNumbers, typo.dayNumbers);
+          if (applyGlobally) {
+            if (typo.monthHeader) {
+              Object.assign(state.project.globalSettings.defaultTypography.monthHeader, typo.monthHeader);
+            }
+            if (typo.dayNames) {
+              Object.assign(state.project.globalSettings.defaultTypography.dayNames, typo.dayNames);
+            }
+            if (typo.dayNumbers) {
+              Object.assign(state.project.globalSettings.defaultTypography.dayNumbers, typo.dayNumbers);
+            }
+            // Clear overrides so all pages adopt the global setting
+            state.project.pages.forEach((p) => {
+              if (p.calendarGrid) {
+                p.calendarGrid.typographyOverrides = undefined;
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            const grid = state.project.pages[pageIndex].calendarGrid!;
+            grid.typographyOverrides = {
+              ...(grid.typographyOverrides || {}),
+              ...(typo.monthHeader ? { monthHeader: { ...(grid.typographyOverrides?.monthHeader || state.project.globalSettings.defaultTypography.monthHeader), ...typo.monthHeader } } : {}),
+              ...(typo.dayNames ? { dayNames: { ...(grid.typographyOverrides?.dayNames || state.project.globalSettings.defaultTypography.dayNames), ...typo.dayNames } } : {}),
+              ...(typo.dayNumbers ? { dayNumbers: { ...(grid.typographyOverrides?.dayNumbers || state.project.globalSettings.defaultTypography.dayNumbers), ...typo.dayNumbers } } : {}),
+            };
           }
           state.project.updatedAt = new Date().toISOString();
         });
@@ -614,6 +651,26 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
         });
       },
 
+      setGlobalClipToSafe: (clip, applyGlobally = true, pageIndex, regionId) => {
+        set((state) => {
+          state.project.globalSettings.clipToSafeArea = clip;
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              page.imageRegions.forEach((r: any) => {
+                r.clipToSafeArea = clip;
+              });
+            });
+          } else if (pageIndex !== undefined && regionId) {
+            const page = state.project.pages[pageIndex];
+            const region = page?.imageRegions.find((r: any) => r.id === regionId);
+            if (region) {
+              region.clipToSafeArea = clip;
+            }
+          }
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
       // --- Annotation Actions ---
       setDayAnnotation: (pageIndex, annotation) => {
         set((state) => {
@@ -654,6 +711,107 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
           const page = state.project.pages[pageIndex];
           if (!page?.calendarGrid) return;
           Object.assign(page.calendarGrid, config);
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      setGlobalIncludeYear: (includeYear, applyGlobally = true, pageIndex) => {
+        set((state) => {
+          state.project.globalSettings.includeYear = includeYear;
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              if (page.calendarGrid) {
+                page.calendarGrid.includeYear = includeYear;
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            state.project.pages[pageIndex].calendarGrid!.includeYear = includeYear;
+          }
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      setGlobalShortDayNames: (shortDayNames, applyGlobally = true, pageIndex) => {
+        set((state) => {
+          state.project.globalSettings.shortDayNames = shortDayNames;
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              if (page.calendarGrid) {
+                page.calendarGrid.shortDayNames = shortDayNames;
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            state.project.pages[pageIndex].calendarGrid!.shortDayNames = shortDayNames;
+          }
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      setGlobalShowGridLines: (showGridLines, applyGlobally = true, pageIndex) => {
+        set((state) => {
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              if (page.calendarGrid) {
+                page.calendarGrid.showGridLines = showGridLines;
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            state.project.pages[pageIndex].calendarGrid!.showGridLines = showGridLines;
+          }
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      applySpanishHolidays: (includeNational, provinceId, holidayColor = '#e74c3c') => {
+        set((state) => {
+          const year = state.project.year;
+          state.project.globalSettings.includeNationalHolidays = includeNational;
+          state.project.globalSettings.holidayProvince = provinceId;
+
+          const allHolidays = getAllHolidaysForYear(year, includeNational, provinceId);
+
+          state.project.pages.forEach((page) => {
+            if (page.type === 'month' && page.month && page.calendarGrid) {
+              const grid = page.calendarGrid;
+              // 1. Remove previous automated holidays (keep custom user annotations)
+              grid.annotations = grid.annotations.filter((a: any) => !a.isHoliday);
+
+              // 2. Add calculated holidays for this month
+              const monthHolidays = allHolidays.filter((h) => h.month === page.month);
+              monthHolidays.forEach((h) => {
+                const existingIndex = grid.annotations.findIndex((a: any) => Number(a.day) === h.day);
+                const holidayAnnotation: DayAnnotation = {
+                  day: h.day,
+                  text: h.name,
+                  color: holidayColor,
+                  fontSizePt: 7,
+                  fontFamily: 'Inter',
+                  icon: '🔴',
+                  isHoliday: true,
+                  holidayType: h.type,
+                };
+                if (existingIndex >= 0) {
+                  grid.annotations[existingIndex].isHoliday = true;
+                  grid.annotations[existingIndex].holidayType = h.type;
+                } else {
+                  grid.annotations.push(holidayAnnotation);
+                }
+              });
+            }
+          });
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      clearSpanishHolidays: () => {
+        set((state) => {
+          state.project.globalSettings.includeNationalHolidays = false;
+          state.project.globalSettings.holidayProvince = undefined;
+          state.project.pages.forEach((page) => {
+            if (page.type === 'month' && page.calendarGrid) {
+              page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a: any) => !a.isHoliday);
+            }
+          });
           state.project.updatedAt = new Date().toISOString();
         });
       },

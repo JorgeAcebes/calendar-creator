@@ -1,12 +1,13 @@
 // =============================================================================
-// AnnotationPanel — Add, edit, and delete text annotations on specific days
+// AnnotationPanel — Add, edit, and delete annotations & Spanish public holidays
 // =============================================================================
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquarePlus, Trash2, Check, Edit2 } from 'lucide-react';
+import { MessageSquarePlus, Trash2, Check, Edit2, Calendar, MapPin } from 'lucide-react';
 import type { DayAnnotation } from '@calendar-creator/shared-types';
 import { useCalendarStore } from '@/store/calendarStore';
 import { showToast } from '@/components/layout/Toast';
+import { SPANISH_PROVINCES } from '@/utils/spanishHolidays';
 
 const FONT_OPTIONS = [
   'Montserrat', 'Inter', 'Outfit', 'Roboto', 'Playfair Display',
@@ -18,9 +19,15 @@ const AnnotationPanel: React.FC = () => {
   const selectedDayStore = useCalendarStore((s) => s.editor.selectedDayForAnnotation);
   const setSelectedDayStore = useCalendarStore((s) => s.setSelectedDayForAnnotation);
   const page = useCalendarStore((s) => s.project.pages[s.editor.activePageIndex]);
+  const allPages = useCalendarStore((s) => s.project.pages);
   const setAnnotation = useCalendarStore((s) => s.setDayAnnotation);
   const removeAnnotation = useCalendarStore((s) => s.removeDayAnnotation);
   const clearAllAnnotations = useCalendarStore((s) => s.clearAllDayAnnotations);
+
+  const holidayProvince = useCalendarStore((s) => s.project.globalSettings.holidayProvince ?? '');
+  const includeNationalHolidays = useCalendarStore((s) => s.project.globalSettings.includeNationalHolidays ?? false);
+  const applySpanishHolidays = useCalendarStore((s) => s.applySpanishHolidays);
+  const clearSpanishHolidays = useCalendarStore((s) => s.clearSpanishHolidays);
 
   const [selectedDay, setSelectedDay] = useState<number>(selectedDayStore || 1);
   const [text, setText] = useState('');
@@ -28,6 +35,17 @@ const AnnotationPanel: React.FC = () => {
   const [color, setColor] = useState('#E63946');
   const [fontSizePt, setFontSizePt] = useState(7);
   const [fontFamily, setFontFamily] = useState('Inter');
+
+  const [includeNational, setIncludeNational] = useState<boolean>(includeNationalHolidays);
+  const [selectedProvince, setSelectedProvince] = useState<string>(holidayProvince);
+
+  useEffect(() => {
+    setIncludeNational(includeNationalHolidays);
+  }, [includeNationalHolidays]);
+
+  useEffect(() => {
+    setSelectedProvince(holidayProvince);
+  }, [holidayProvince]);
 
   // Sync when user clicks a day on the calendar grid
   useEffect(() => {
@@ -42,6 +60,10 @@ const AnnotationPanel: React.FC = () => {
 
   const annotations = page.calendarGrid.annotations;
   const maxDays = page.month ? new Date(page.year, page.month, 0).getDate() : 31;
+
+  const hasHolidaysApplied = allPages.some(
+    (p) => p.calendarGrid?.annotations?.some((a: any) => a.isHoliday)
+  );
 
   // Check if an annotation already exists for the selected day
   const existingAnnotation = annotations.find(
@@ -96,11 +118,100 @@ const AnnotationPanel: React.FC = () => {
       <div className="panel-section__header">
         <span className="panel-section__title">
           <MessageSquarePlus size={14} style={{ verticalAlign: 'middle', marginRight: 4 }} />
-          Anotaciones
+          Notas y Festivos
         </span>
         <span className="badge">{annotations.length}</span>
       </div>
 
+      {/* SECTION: Festivos Oficiales (España) */}
+      <div style={{
+        padding: '12px',
+        marginBottom: 'var(--space-4)',
+        background: 'rgba(255, 69, 58, 0.07)',
+        border: '1px solid rgba(255, 69, 58, 0.25)',
+        borderRadius: 'var(--radius-md)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+          <span style={{ fontSize: '12px', fontWeight: 700, color: '#ff453a', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Calendar size={14} />
+            Festivos Oficiales (España)
+          </span>
+          {hasHolidaysApplied && (
+            <button
+              type="button"
+              className="btn btn--ghost btn--sm"
+              style={{ fontSize: '11px', color: '#ff453a', padding: '2px 6px', height: 'auto' }}
+              onClick={() => {
+                clearSpanishHolidays();
+                showToast({ type: 'info', message: 'Festivos automáticos eliminados del calendario' });
+              }}
+              title="Quitar festivos automáticos del calendario"
+            >
+              <Trash2 size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />
+              Quitar festivos
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {/* National Holidays Checkbox */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={includeNational}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIncludeNational(checked);
+                if (checked || selectedProvince) {
+                  applySpanishHolidays(checked, selectedProvince || undefined);
+                  showToast({
+                    type: 'success',
+                    message: checked ? 'Festivos nacionales marcados en todo el calendario' : 'Festivos nacionales desactivados',
+                  });
+                } else {
+                  clearSpanishHolidays();
+                }
+              }}
+              style={{ width: 16, height: 16, accentColor: '#ff453a', cursor: 'pointer' }}
+            />
+            <span>Marcar festivos a nivel nacional</span>
+          </label>
+
+          {/* Province Selector */}
+          <div className="input-group">
+            <label className="input-label" style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+              <MapPin size={12} color="#ff453a" />
+              Festivos autonómicos por provincia
+            </label>
+            <select
+              className="input select input--sm"
+              value={selectedProvince}
+              onChange={(e) => {
+                const provId = e.target.value;
+                setSelectedProvince(provId);
+                applySpanishHolidays(includeNational, provId || undefined);
+                const provName = SPANISH_PROVINCES.find((p) => p.id === provId)?.name;
+                showToast({
+                  type: 'success',
+                  message: provId
+                    ? `Festivos de ${provName} aplicados a todo el calendario`
+                    : 'Festivos provinciales desactivados',
+                });
+              }}
+              style={{ width: '100%', fontSize: '12px' }}
+            >
+              <option value="">-- Sin provincia seleccionada --</option>
+              {SPANISH_PROVINCES.map((prov) => (
+                <option key={prov.id} value={prov.id}>
+                  {prov.name} ({prov.community})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION: Anotaciones Manuales */}
       <div style={{
         padding: '8px 12px',
         marginBottom: 'var(--space-3)',
@@ -265,7 +376,7 @@ const AnnotationPanel: React.FC = () => {
                 const isItemActive = Number(selectedDay) === Number(ann.day);
                 return (
                   <div
-                    key={ann.day}
+                    key={`${ann.day}-${ann.text}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -300,6 +411,11 @@ const AnnotationPanel: React.FC = () => {
                       }}
                     >
                       {ann.icon ? `${ann.icon} ` : ''}{ann.text}
+                      {ann.isHoliday && (
+                        <span style={{ fontSize: '10px', marginLeft: 6, opacity: 0.65, fontStyle: 'italic' }}>
+                          ({ann.holidayType === 'national' ? 'festivo nacional' : 'festivo provincial'})
+                        </span>
+                      )}
                     </span>
                     <button
                       type="button"
