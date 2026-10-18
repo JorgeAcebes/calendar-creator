@@ -409,7 +409,11 @@ const EditorLayout: React.FC = () => {
           {/* TAB 2: TIPOGRAFÍA */}
           {activeTab === 'typography' && (
             <div className="animate-fade-in">
-              <TypographyPanel />
+              {activePage?.type === 'cover' ? (
+                <CoverTextPanel />
+              ) : (
+                <TypographyPanel />
+              )}
             </div>
           )}
 

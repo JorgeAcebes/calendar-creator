@@ -228,7 +228,7 @@ function createDefaultSettings(): GlobalSettings {
         fontWeight: 400,
         fontSizePt: 12,
         color: '#1A1A2E',
-        sundayColor: '#E63946',
+        sundayColor: '#000000',
         textAlign: 'center',
         verticalAlign: 'top',
         cellPaddingPx: { top: 4, right: 4, bottom: 4, left: 4 },
@@ -283,6 +283,7 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
       fontSizePt: 36,
       color: '#000000',
       positionPreset: 'bottom-center',
+      showShadow: false,
     },
   });
 

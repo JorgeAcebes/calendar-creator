@@ -215,6 +215,8 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
             const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm, canvasScale) : 0;
             const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm, canvasScale) : defaultY;
 
+            const hasShadow = !!page.coverText.showShadow;
+
             return (
               <Group x={groupX} y={groupY}>
                 <Text
@@ -227,6 +229,10 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
                   fontStyle="bold"
                   fill={page.coverText.color}
                   align="center"
+                  shadowEnabled={hasShadow}
+                  shadowColor={hasShadow ? "rgba(0,0,0,0.5)" : undefined}
+                  shadowBlur={hasShadow ? 4 : 0}
+                  shadowOffsetY={hasShadow ? 2 : 0}
                 />
                 {page.coverText.subtitle && (
                   <Text
@@ -238,6 +244,10 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
                     fontSize={page.coverText.fontSizePt * canvasScale * 2}
                     fill={page.coverText.color}
                     align="center"
+                    shadowEnabled={hasShadow}
+                    shadowColor={hasShadow ? "rgba(0,0,0,0.3)" : undefined}
+                    shadowBlur={hasShadow ? 3 : 0}
+                    shadowOffsetY={hasShadow ? 1 : 0}
                   />
                 )}
               </Group>

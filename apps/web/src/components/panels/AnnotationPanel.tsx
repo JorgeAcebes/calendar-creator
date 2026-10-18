@@ -319,9 +319,6 @@ const AnnotationPanel: React.FC = () => {
                   <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     {[
                       { hex: '#000000', name: 'Negro (Por defecto)' },
-                      { hex: '#1A1A2E', name: 'Azul marino oscuro' },
-                      { hex: '#ff453a', name: 'Rojo vibrante' },
-                      { hex: '#e63946', name: 'Carmesí' },
                       { hex: '#b91c1c', name: 'Granate' },
                       { hex: '#d97706', name: 'Ámbar' },
                       { hex: '#2563eb', name: 'Azul' },

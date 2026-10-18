@@ -473,11 +473,19 @@ const CalendarCanvas: React.FC = () => {
             const groupX = page.coverText.xMm !== undefined ? toCanvasPx(page.coverText.xMm, canvasScale) : 0;
             const groupY = page.coverText.yMm !== undefined ? toCanvasPx(page.coverText.yMm, canvasScale) : defaultY;
 
+            const hasShadow = !!page.coverText.showShadow;
+
             return (
             <Group
               draggable
               x={groupX}
               y={groupY}
+              onClick={() => {
+                useCalendarStore.getState().setActiveTab('notes');
+              }}
+              onTap={() => {
+                useCalendarStore.getState().setActiveTab('notes');
+              }}
               onDragMove={(e) => {
                 const node = e.target;
                 let newX = node.x();
@@ -529,9 +537,10 @@ const CalendarCanvas: React.FC = () => {
                 fontStyle="bold"
                 fill={page.coverText.color}
                 align="center"
-                shadowColor="rgba(0,0,0,0.5)"
-                shadowBlur={4}
-                shadowOffsetY={2}
+                shadowEnabled={hasShadow}
+                shadowColor={hasShadow ? "rgba(0,0,0,0.5)" : undefined}
+                shadowBlur={hasShadow ? 4 : 0}
+                shadowOffsetY={hasShadow ? 2 : 0}
               />
               {page.coverText.subtitle && (
                 <Text
@@ -544,9 +553,10 @@ const CalendarCanvas: React.FC = () => {
                   fill={page.coverText.color}
                   align="center"
                   opacity={0.85}
-                  shadowColor="rgba(0,0,0,0.3)"
-                  shadowBlur={3}
-                  shadowOffsetY={1}
+                  shadowEnabled={hasShadow}
+                  shadowColor={hasShadow ? "rgba(0,0,0,0.3)" : undefined}
+                  shadowBlur={hasShadow ? 3 : 0}
+                  shadowOffsetY={hasShadow ? 1 : 0}
                 />
               )}
             </Group>

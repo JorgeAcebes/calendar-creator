@@ -397,25 +397,44 @@ const TypographyPanel: React.FC = () => {
             <input
               type="color"
               className="input-color"
-              value={typography.dayNumbers.sundayColor}
+              value={typography.dayNumbers.sundayColor || '#000000'}
               onChange={(e) =>
                 update({ dayNumbers: { ...typography.dayNumbers, sundayColor: e.target.value } })
               }
-              style={{ width: 28, height: 24, borderRadius: 4, cursor: 'pointer' }}
+              style={{ width: 28, height: 24, borderRadius: 4, cursor: 'pointer', flexShrink: 0 }}
             />
-            <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-              {typography.dayNumbers.sundayColor.toUpperCase()}
-            </span>
+            <input
+              type="text"
+              className="input input--sm"
+              value={typography.dayNumbers.sundayColor || '#000000'}
+              onChange={(e) =>
+                update({ dayNumbers: { ...typography.dayNumbers, sundayColor: e.target.value } })
+              }
+              onBlur={(e) => {
+                let val = e.target.value.trim();
+                if (val && !val.startsWith('#')) val = '#' + val;
+                if (/^#[0-9A-Fa-f]{3,8}$/.test(val)) {
+                  update({ dayNumbers: { ...typography.dayNumbers, sundayColor: val } });
+                }
+              }}
+              style={{
+                width: '80px',
+                padding: '2px 6px',
+                fontSize: '11px',
+                fontVariantNumeric: 'tabular-nums',
+                fontFamily: 'monospace',
+              }}
+            />
           </div>
 
           {/* Quick preset swatches */}
           <div style={{ display: 'flex', gap: 5 }}>
             {[
-              { hex: '#ff453a', name: 'Rojo vibrante' },
-              { hex: '#e63946', name: 'Carmesí' },
+              { hex: '#000000', name: 'Negro (Por defecto)' },
+              { hex: '#ff453a', name: 'Rojo' },
               { hex: '#b91c1c', name: 'Granate' },
-              { hex: '#d97706', name: 'Ámbar oscuro' },
-              { hex: '#3b82f6', name: 'Azul' },
+              { hex: '#d97706', name: 'Ámbar' },
+              { hex: '#2563eb', name: 'Azul' },
             ].map((swatch) => (
               <button
                 key={swatch.hex}
@@ -426,7 +445,7 @@ const TypographyPanel: React.FC = () => {
                   height: 18,
                   borderRadius: 4,
                   background: swatch.hex,
-                  border: typography.dayNumbers.sundayColor.toLowerCase() === swatch.hex.toLowerCase() ? '2px solid white' : '1px solid rgba(255,255,255,0.2)',
+                  border: (typography.dayNumbers.sundayColor || '#000000').toLowerCase() === swatch.hex.toLowerCase() ? '2px solid white' : '1px solid rgba(255,255,255,0.2)',
                   cursor: 'pointer',
                   padding: 0,
                 }}

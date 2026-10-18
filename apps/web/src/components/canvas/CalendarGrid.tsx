@@ -257,29 +257,28 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
 
           const numH = dayNumbersFontSize * 1.35;
           const availW = colWidth - padding * 2;
-
-          // Day numbers maintain strict, identical positioning across all cells (never displaced)
-          const numY = cellY + padding;
           const numVAlign: VerticalAlign = typo.dayNumbers.verticalAlign ?? 'top';
 
-          // Annotation / holiday text occupies the area below the day number
-          const annAreaTop = cellY + padding + numH + 2;
-          const annH = Math.max(8, cellY + rowHeight - padding - annAreaTop);
+          // Day numbers maintain strict, identical positioning across all cells (never displaced)
+          let numY = cellY + padding;
+          let annAreaTop = cellY + padding + numH + 2;
+          let annH = Math.max(8, cellY + rowHeight - padding - annAreaTop);
 
-          let annY = annAreaTop;
-          let annVAlign: 'top' | 'middle' | 'bottom' = 'bottom';
-
-          if (textPos === 'top') {
-            annY = annAreaTop;
-            annVAlign = 'top';
-          } else if (textPos === 'middle') {
-            annY = annAreaTop;
-            annVAlign = 'middle';
-          } else {
-            // 'bottom' (default)
-            annY = annAreaTop;
-            annVAlign = 'bottom';
+          if (numVAlign === 'middle') {
+            // Day number stays centered in the cell for all days (with or without notes)
+            numY = cellY + Math.round((rowHeight - numH) / 2);
+            // Text/notes are placed down in the space below the centered number
+            annAreaTop = numY + numH + 1;
+            annH = Math.max(8, cellY + rowHeight - padding - annAreaTop);
+          } else if (numVAlign === 'bottom') {
+            numY = cellY + rowHeight - padding - numH;
+            annAreaTop = cellY + padding;
+            annH = Math.max(8, numY - annAreaTop - 1);
           }
+
+          const annY = annAreaTop;
+          const annVAlign: 'top' | 'middle' | 'bottom' =
+            textPos === 'top' ? 'top' : textPos === 'middle' ? 'middle' : 'bottom';
 
           return (
             <Group
@@ -319,7 +318,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
                 fontSize={dayNumbersFontSize}
                 fill={dayColor}
                 align={typo.dayNumbers.textAlign ?? 'center'}
-                verticalAlign={numVAlign}
+                verticalAlign="middle"
               />
 
               {/* Annotation / Holiday text */}

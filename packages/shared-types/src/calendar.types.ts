@@ -300,6 +300,7 @@ export interface CoverText {
   positionPreset: CoverTextPosition;
   xMm?: number;
   yMm?: number;
+  showShadow?: boolean;
 }
 
 // ---------------------------------------------------------------------------
