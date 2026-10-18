@@ -163,6 +163,12 @@ export interface GlobalSettings {
   holidayProvince?: string;
   /** Whether national Spanish holidays are marked */
   includeNationalHolidays?: boolean;
+  /** Placement of holiday text within the day cell ('top' | 'middle' | 'bottom') */
+  holidayTextPosition?: 'top' | 'middle' | 'bottom';
+  /** Whether to fill the holiday cell background */
+  holidayFillBackground?: boolean;
+  /** Background color for holiday cells (hex) */
+  holidayBackgroundColor?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -233,6 +239,12 @@ export interface DayAnnotation {
   isHoliday?: boolean;
   /** Type of holiday */
   holidayType?: 'national' | 'provincial';
+  /** Text placement within the day cell ('top' | 'middle' | 'bottom') */
+  textPosition?: 'top' | 'middle' | 'bottom';
+  /** Whether to fill the day cell background */
+  fillBackground?: boolean;
+  /** Background color for the cell */
+  backgroundColor?: string;
 }
 
 export interface CalendarGridConfig {
@@ -257,6 +269,12 @@ export interface CalendarGridConfig {
   annotations: DayAnnotation[];
   /** Whether to use short day names (e.g. L vs Lunes) */
   shortDayNames?: boolean;
+  /** Placement of holiday text within the day cell ('top' | 'middle' | 'bottom') */
+  holidayTextPosition?: 'top' | 'middle' | 'bottom';
+  /** Whether to fill the holiday cell background */
+  holidayFillBackground?: boolean;
+  /** Background color for holiday cells (hex) */
+  holidayBackgroundColor?: string;
 }
 
 // ---------------------------------------------------------------------------

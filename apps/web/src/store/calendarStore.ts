@@ -104,6 +104,16 @@ export interface CalendarStoreActions {
   applySpanishHolidays: (includeNational: boolean, provinceId?: string, holidayColor?: string) => void;
   /** Clear automated Spanish holidays from all pages */
   clearSpanishHolidays: () => void;
+  /** Update holiday text position, fill background, and background color */
+  setHolidayStyle: (
+    style: {
+      textPosition?: 'top' | 'middle' | 'bottom';
+      fillBackground?: boolean;
+      backgroundColor?: string;
+    },
+    applyGlobally?: boolean,
+    pageIndex?: number
+  ) => void;
 
   // --- Page Actions ---
   /** Set the active page */
@@ -229,6 +239,9 @@ function createDefaultSettings(): GlobalSettings {
     clipToSafeArea: false,
     includeNationalHolidays: false,
     holidayProvince: undefined,
+    holidayTextPosition: 'bottom',
+    holidayFillBackground: false,
+    holidayBackgroundColor: '#ffebee',
   };
 }
 
@@ -298,6 +311,9 @@ function createDefaultPages(year: number, paper: PaperDimensions): Page[] {
             showGridLines: true,
             includeYear: true,
             shortDayNames: true,
+            holidayTextPosition: 'bottom',
+            holidayFillBackground: false,
+            holidayBackgroundColor: '#ffebee',
             annotations: [],
           }
         : null,
@@ -812,6 +828,36 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
               page.calendarGrid.annotations = page.calendarGrid.annotations.filter((a: any) => !a.isHoliday);
             }
           });
+          state.project.updatedAt = new Date().toISOString();
+        });
+      },
+
+      setHolidayStyle: (style, applyGlobally = true, pageIndex) => {
+        set((state) => {
+          if (style.textPosition !== undefined) {
+            state.project.globalSettings.holidayTextPosition = style.textPosition;
+          }
+          if (style.fillBackground !== undefined) {
+            state.project.globalSettings.holidayFillBackground = style.fillBackground;
+          }
+          if (style.backgroundColor !== undefined) {
+            state.project.globalSettings.holidayBackgroundColor = style.backgroundColor;
+          }
+
+          if (applyGlobally) {
+            state.project.pages.forEach((page) => {
+              if (page.type === 'month' && page.calendarGrid) {
+                if (style.textPosition !== undefined) page.calendarGrid.holidayTextPosition = style.textPosition;
+                if (style.fillBackground !== undefined) page.calendarGrid.holidayFillBackground = style.fillBackground;
+                if (style.backgroundColor !== undefined) page.calendarGrid.holidayBackgroundColor = style.backgroundColor;
+              }
+            });
+          } else if (pageIndex !== undefined && state.project.pages[pageIndex]?.calendarGrid) {
+            const grid = state.project.pages[pageIndex].calendarGrid!;
+            if (style.textPosition !== undefined) grid.holidayTextPosition = style.textPosition;
+            if (style.fillBackground !== undefined) grid.holidayFillBackground = style.fillBackground;
+            if (style.backgroundColor !== undefined) grid.holidayBackgroundColor = style.backgroundColor;
+          }
           state.project.updatedAt = new Date().toISOString();
         });
       },

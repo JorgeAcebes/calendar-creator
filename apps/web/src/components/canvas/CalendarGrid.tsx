@@ -12,6 +12,7 @@ import type {
   DefaultTypography,
   DayAnnotation,
   Locale,
+  VerticalAlign,
 } from '@calendar-creator/shared-types';
 import { mmToPx } from '@calendar-creator/shared-types';
 import { useCalendarDates } from '@/hooks/useCalendarDates';
@@ -45,6 +46,8 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
   typography,
   canvasScale,
 }) => {
+  const globalSettings = useCalendarStore((s) => s.project.globalSettings);
+
   // Merge typography overrides
   const typo = useMemo(() => ({
     monthHeader: { ...typography.monthHeader, ...config.typographyOverrides?.monthHeader },
@@ -165,6 +168,43 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
         />
       )}
 
+      {/* Day Cell Background Fills — Completely fills square if enabled */}
+      <Group key="day-cell-backgrounds">
+        {calendarData.weeks.map((week, rowIdx) =>
+          week.map((day, colIdx) => {
+            if (!day.isCurrentMonth) return null;
+            const annotation = annotationMap.get(day.day);
+            if (!annotation) return null;
+            const isHoliday = !!annotation.isHoliday;
+            const shouldFill = isHoliday
+              ? (config.holidayFillBackground ?? globalSettings.holidayFillBackground ?? false)
+              : (annotation.fillBackground ?? false);
+            if (!shouldFill) return null;
+
+            const bgColor = isHoliday
+              ? (config.holidayBackgroundColor ?? globalSettings.holidayBackgroundColor ?? '#ffebee')
+              : (annotation.backgroundColor ?? `${annotation.color}18`);
+
+            const cellColIdx = config.showWeekNumbers ? colIdx + 1 : colIdx;
+            const cellX = gridX + cellColIdx * colWidth;
+            const cellY = gridBodyY + rowIdx * rowHeight;
+
+            return (
+              <Rect
+                key={`bg-${rowIdx}-${colIdx}`}
+                x={cellX}
+                y={cellY}
+                width={colWidth}
+                height={rowHeight}
+                fill={bgColor}
+                cornerRadius={0}
+                listening={false}
+              />
+            );
+          }),
+        )}
+      </Group>
+
       {/* Grid lines */}
       {config.showGridLines !== false && (
         <Group>
@@ -189,7 +229,7 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
         </Group>
       )}
 
-      {/* Day Numbers */}
+      {/* Day Numbers & Annotation Texts */}
       {calendarData.weeks.map((week, rowIdx) =>
         week.map((day, colIdx) => {
           const cellColIdx = config.showWeekNumbers ? colIdx + 1 : colIdx;
@@ -202,6 +242,43 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
           if (day.isSunday || annotation?.isHoliday) dayColor = typo.dayNumbers.sundayColor;
           else if (day.isSaturday && typo.dayNumbers.saturdayColor) dayColor = typo.dayNumbers.saturdayColor;
           if (!day.isCurrentMonth) dayColor = typo.dayNumbers.color + '30'; // 30 = ~18% opacity hex
+
+          const isHoliday = !!annotation?.isHoliday;
+          const textPos = isHoliday
+            ? (config.holidayTextPosition ?? globalSettings.holidayTextPosition ?? 'bottom')
+            : (annotation?.textPosition ?? 'bottom');
+
+          const numH = dayNumbersFontSize * 1.35;
+          const availH = rowHeight - padding * 2;
+          const availW = colWidth - padding * 2;
+          const annH = Math.max(8, availH - numH);
+
+          let numY = cellY + padding;
+          let numVAlign: VerticalAlign = typo.dayNumbers.verticalAlign ?? 'top';
+          let annY = cellY + padding + numH;
+          let annVAlign: 'top' | 'middle' | 'bottom' = 'bottom';
+
+          if (annotation) {
+            if (textPos === 'top') {
+              // Annotation text at top, Day number at bottom
+              annY = cellY + padding;
+              annVAlign = 'top';
+              numY = cellY + rowHeight - numH - padding;
+              numVAlign = 'bottom';
+            } else if (textPos === 'middle') {
+              // Day number at top, Annotation text centered in middle
+              numY = cellY + padding;
+              numVAlign = 'top';
+              annY = cellY + padding + numH;
+              annVAlign = 'middle';
+            } else {
+              // 'bottom' (default): Day number at top, Annotation text at bottom
+              numY = cellY + padding;
+              numVAlign = 'top';
+              annY = cellY + padding + numH;
+              annVAlign = 'bottom';
+            }
+          }
 
           return (
             <Group
@@ -229,50 +306,37 @@ const CalendarGridComponent: React.FC<CalendarGridProps> = ({
                 if (stage) stage.container().style.cursor = 'default';
               }}
             >
-              {/* Day background highlight if annotated */}
-              {annotation && (
-                <Rect
-                  x={cellX + 1}
-                  y={cellY + 1}
-                  width={colWidth - 2}
-                  height={rowHeight - 2}
-                  fill={`${annotation.color}18`}
-                  stroke={`${annotation.color}50`}
-                  strokeWidth={1}
-                  cornerRadius={3}
-                />
-              )}
-
               {/* Day number */}
               <Text
                 x={cellX + padding}
-                y={cellY + padding}
-                width={colWidth - padding * 2}
-                height={rowHeight - padding * 2}
+                y={numY}
+                width={availW}
+                height={annotation ? numH : availH}
                 text={String(day.day)}
                 fontFamily={getFontFamilyWithFallback(typo.dayNumbers.fontFamily)}
                 fontStyle={typo.dayNumbers.fontWeight >= 600 ? 'bold' : 'normal'}
                 fontSize={dayNumbersFontSize}
                 fill={dayColor}
                 align={typo.dayNumbers.textAlign ?? 'center'}
-                verticalAlign={typo.dayNumbers.verticalAlign ?? 'top'}
+                verticalAlign={numVAlign}
               />
 
-              {/* Annotation text (auto-fit within remaining cell space) */}
+              {/* Annotation / Holiday text */}
               {annotation && (
                 <Text
                   x={cellX + padding}
-                  y={cellY + dayNumbersFontSize * 1.4 + padding}
-                  width={colWidth - padding * 2}
-                  height={rowHeight - dayNumbersFontSize * 1.6 - padding * 2}
+                  y={annY}
+                  width={availW}
+                  height={annH}
                   text={`${annotation.icon ?? ''} ${annotation.text}`.trim()}
                   fontFamily={getFontFamilyWithFallback(annotation.fontFamily ?? typo.dayNumbers.fontFamily)}
                   fontSize={(annotation.fontSizePt ?? 7) * canvasScale * 3.5}
                   fill={annotation.color}
                   align="center"
-                  verticalAlign="top"
+                  verticalAlign={annVAlign}
                   wrap="word"
                   ellipsis={true}
+                  lineHeight={1.15}
                 />
               )}
             </Group>

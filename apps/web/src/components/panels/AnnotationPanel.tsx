@@ -28,6 +28,10 @@ const AnnotationPanel: React.FC = () => {
   const includeNationalHolidays = useCalendarStore((s) => s.project.globalSettings.includeNationalHolidays ?? false);
   const applySpanishHolidays = useCalendarStore((s) => s.applySpanishHolidays);
   const clearSpanishHolidays = useCalendarStore((s) => s.clearSpanishHolidays);
+  const setHolidayStyle = useCalendarStore((s) => s.setHolidayStyle);
+  const globalHolidayTextPos = useCalendarStore((s) => s.project.globalSettings.holidayTextPosition ?? 'bottom');
+  const globalHolidayFillBg = useCalendarStore((s) => s.project.globalSettings.holidayFillBackground ?? false);
+  const globalHolidayBgColor = useCalendarStore((s) => s.project.globalSettings.holidayBackgroundColor ?? '#ffebee');
 
   const [selectedDay, setSelectedDay] = useState<number>(selectedDayStore || 1);
   const [text, setText] = useState('');
@@ -35,9 +39,13 @@ const AnnotationPanel: React.FC = () => {
   const [color, setColor] = useState('#E63946');
   const [fontSizePt, setFontSizePt] = useState(7);
   const [fontFamily, setFontFamily] = useState('Inter');
+  const [annTextPos, setAnnTextPos] = useState<'top' | 'middle' | 'bottom'>('bottom');
+  const [annFillBg, setAnnFillBg] = useState<boolean>(false);
+  const [annBgColor, setAnnBgColor] = useState<string>('#ffebee');
 
   const [includeNational, setIncludeNational] = useState<boolean>(includeNationalHolidays);
   const [selectedProvince, setSelectedProvince] = useState<string>(holidayProvince);
+  const [applyHolidayGlobally, setApplyHolidayGlobally] = useState<boolean>(true);
 
   useEffect(() => {
     setIncludeNational(includeNationalHolidays);
@@ -78,11 +86,28 @@ const AnnotationPanel: React.FC = () => {
       setFontSizePt(existingAnnotation.fontSizePt || 7);
       setFontFamily(existingAnnotation.fontFamily || 'Inter');
       setIcon(existingAnnotation.icon || '');
+      setAnnTextPos(existingAnnotation.textPosition || (existingAnnotation.isHoliday ? globalHolidayTextPos : 'bottom'));
+      setAnnFillBg(existingAnnotation.fillBackground ?? (existingAnnotation.isHoliday ? globalHolidayFillBg : false));
+      setAnnBgColor(existingAnnotation.backgroundColor || (existingAnnotation.isHoliday ? globalHolidayBgColor : '#ffebee'));
     } else {
       setText('');
       setIcon('');
+      setAnnTextPos('bottom');
+      setAnnFillBg(false);
+      setAnnBgColor('#ffebee');
     }
-  }, [selectedDay, existingAnnotation?.text, existingAnnotation?.color, existingAnnotation?.icon]);
+  }, [
+    selectedDay,
+    existingAnnotation?.text,
+    existingAnnotation?.color,
+    existingAnnotation?.icon,
+    existingAnnotation?.textPosition,
+    existingAnnotation?.fillBackground,
+    existingAnnotation?.backgroundColor,
+    globalHolidayTextPos,
+    globalHolidayFillBg,
+    globalHolidayBgColor,
+  ]);
 
   const handleSave = () => {
     if (!text.trim()) return;
@@ -93,6 +118,11 @@ const AnnotationPanel: React.FC = () => {
       fontSizePt,
       fontFamily,
       icon: icon || undefined,
+      isHoliday: existingAnnotation?.isHoliday,
+      holidayType: existingAnnotation?.holidayType,
+      textPosition: annTextPos,
+      fillBackground: annFillBg,
+      backgroundColor: annFillBg ? annBgColor : undefined,
     };
     setAnnotation(activePageIndex, annotation);
     showToast({
@@ -208,6 +238,116 @@ const AnnotationPanel: React.FC = () => {
               ))}
             </select>
           </div>
+
+          {/* Sub-section: Personalización de festivos */}
+          <div style={{
+            marginTop: '6px',
+            paddingTop: '10px',
+            borderTop: '1px dashed rgba(255, 69, 58, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            {/* Text Position */}
+            <div>
+              <label className="input-label" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
+                Posición del texto en la casilla
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                {(['top', 'middle', 'bottom'] as const).map((pos) => {
+                  const label = pos === 'top' ? 'Arriba' : pos === 'middle' ? 'Medio' : 'Abajo';
+                  const isSelected = (applyHolidayGlobally ? globalHolidayTextPos : (page.calendarGrid?.holidayTextPosition ?? globalHolidayTextPos)) === pos;
+                  return (
+                    <button
+                      key={pos}
+                      type="button"
+                      className={`btn btn--sm ${isSelected ? 'btn--primary' : 'btn--ghost'}`}
+                      style={{
+                        padding: '4px 6px',
+                        fontSize: '11px',
+                        fontWeight: isSelected ? 600 : 400,
+                        backgroundColor: isSelected ? '#ff453a' : 'transparent',
+                        borderColor: isSelected ? '#ff453a' : 'var(--color-glass-border)',
+                        color: isSelected ? '#ffffff' : 'var(--color-text-primary)',
+                      }}
+                      onClick={() => setHolidayStyle({ textPosition: pos }, applyHolidayGlobally, activePageIndex)}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Background Color Fill Toggle & Color Picker */}
+            <div>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
+                <input
+                  type="checkbox"
+                  checked={applyHolidayGlobally ? globalHolidayFillBg : (page.calendarGrid?.holidayFillBackground ?? globalHolidayFillBg)}
+                  onChange={(e) => setHolidayStyle({ fillBackground: e.target.checked }, applyHolidayGlobally, activePageIndex)}
+                  style={{ width: 16, height: 16, accentColor: '#ff453a', cursor: 'pointer' }}
+                />
+                <span>Rellenar fondo de la casilla (cuadrado completo)</span>
+              </label>
+
+              {(applyHolidayGlobally ? globalHolidayFillBg : (page.calendarGrid?.holidayFillBackground ?? globalHolidayFillBg)) && (
+                <div style={{ marginTop: '8px', paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="color"
+                      className="input-color"
+                      value={applyHolidayGlobally ? globalHolidayBgColor : (page.calendarGrid?.holidayBackgroundColor ?? globalHolidayBgColor)}
+                      onChange={(e) => setHolidayStyle({ backgroundColor: e.target.value }, applyHolidayGlobally, activePageIndex)}
+                      style={{ width: '32px', height: '28px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)' }}
+                    />
+                    <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
+                      {(applyHolidayGlobally ? globalHolidayBgColor : (page.calendarGrid?.holidayBackgroundColor ?? globalHolidayBgColor)).toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Preset swatches */}
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {[
+                      { name: 'Rojo suave', hex: '#ffebee' },
+                      { name: 'Coral pastel', hex: '#fee2e2' },
+                      { name: 'Naranja suave', hex: '#ffedd5' },
+                      { name: 'Amarillo suave', hex: '#fef9c3' },
+                      { name: 'Azul suave', hex: '#e0f2fe' },
+                      { name: 'Lavanda', hex: '#f3e8ff' },
+                    ].map((swatch) => (
+                      <button
+                        key={swatch.hex}
+                        type="button"
+                        onClick={() => setHolidayStyle({ backgroundColor: swatch.hex }, applyHolidayGlobally, activePageIndex)}
+                        style={{
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '4px',
+                          backgroundColor: swatch.hex,
+                          border: (applyHolidayGlobally ? globalHolidayBgColor : (page.calendarGrid?.holidayBackgroundColor ?? globalHolidayBgColor)).toLowerCase() === swatch.hex.toLowerCase() ? '2px solid #ff453a' : '1px solid rgba(0,0,0,0.15)',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                        title={swatch.name}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Apply Globally Toggle */}
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', color: 'var(--color-text-secondary)', cursor: 'pointer', marginTop: '2px' }}>
+              <input
+                type="checkbox"
+                checked={applyHolidayGlobally}
+                onChange={(e) => setApplyHolidayGlobally(e.target.checked)}
+                style={{ width: 14, height: 14, accentColor: '#ff453a', cursor: 'pointer' }}
+              />
+              <span>Aplicar estilo de festivos a todo el calendario</span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -302,6 +442,62 @@ const AnnotationPanel: React.FC = () => {
               onChange={(e) => setFontSizePt(Number(e.target.value))}
             />
           </div>
+        </div>
+
+        {/* Text Position for this annotation */}
+        <div>
+          <label className="input-label" style={{ fontSize: '11px', marginBottom: '6px', display: 'block' }}>
+            Posición del texto en la casilla
+          </label>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+            {(['top', 'middle', 'bottom'] as const).map((pos) => {
+              const label = pos === 'top' ? 'Arriba' : pos === 'middle' ? 'Medio' : 'Abajo';
+              const isSelected = annTextPos === pos;
+              return (
+                <button
+                  key={pos}
+                  type="button"
+                  className={`btn btn--sm ${isSelected ? 'btn--primary' : 'btn--ghost'}`}
+                  style={{
+                    padding: '4px 6px',
+                    fontSize: '11px',
+                    fontWeight: isSelected ? 600 : 400,
+                  }}
+                  onClick={() => setAnnTextPos(pos)}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Fill Background for this annotation */}
+        <div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '12px', cursor: 'pointer', fontWeight: 500 }}>
+            <input
+              type="checkbox"
+              checked={annFillBg}
+              onChange={(e) => setAnnFillBg(e.target.checked)}
+              style={{ width: 16, height: 16, accentColor: '#0a84ff', cursor: 'pointer' }}
+            />
+            <span>Rellenar fondo de la casilla (cuadrado completo)</span>
+          </label>
+
+          {annFillBg && (
+            <div style={{ marginTop: '8px', paddingLeft: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input
+                type="color"
+                className="input-color"
+                value={annBgColor}
+                onChange={(e) => setAnnBgColor(e.target.value)}
+                style={{ width: '32px', height: '28px', cursor: 'pointer', borderRadius: '4px', border: '1px solid var(--color-glass-border)' }}
+              />
+              <span style={{ fontSize: '11px', fontVariantNumeric: 'tabular-nums', color: 'var(--color-text-secondary)' }}>
+                {annBgColor.toUpperCase()}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
