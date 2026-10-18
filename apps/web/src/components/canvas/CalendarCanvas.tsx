@@ -61,10 +61,63 @@ const CalendarCanvas: React.FC = () => {
   const assignImage = useCalendarStore((s) => s.assignImageToRegion);
   const setDragOverRegionId = useCalendarStore((s) => s.setDragOverRegionId);
   const draggedImageIds = useCalendarStore((s) => s.editor.draggedImageIds);
+  const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
   const lastDistRef = useRef<number>(0);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const hasAutoFittedRef = useRef<boolean>(false);
 
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
+
+  // Auto-fit canvas to available container area on initial mount
+  useEffect(() => {
+    if (hasAutoFittedRef.current) return;
+
+    const fitToContainer = (): boolean => {
+      const container = canvasWrapperRef.current?.closest('.editor-layout__canvas');
+      if (!container) return false;
+
+      const rect = container.getBoundingClientRect();
+      const paddingX = 96; // Margin for left/right page flip buttons
+      const paddingY = 48; // Margin top/bottom
+      const availW = rect.width - paddingX;
+      const availH = rect.height - paddingY;
+
+      const dpi = 300;
+      const totalW = ((paperDimensions.widthMm + bleed.leftMm + bleed.rightMm) / 25.4) * dpi;
+      const totalH = ((paperDimensions.heightMm + bleed.topMm + bleed.bottomMm) / 25.4) * dpi;
+
+      if (totalW > 0 && totalH > 0 && availW > 100 && availH > 100) {
+        const fitZoom = Math.min(availW / totalW, availH / totalH);
+        const roundedZoom = Math.round(Math.max(0.1, Math.min(fitZoom, 2.0)) * 100) / 100;
+        setCanvasZoom(roundedZoom);
+        hasAutoFittedRef.current = true;
+        return true;
+      }
+      return false;
+    };
+
+    if (fitToContainer()) return;
+
+    const timer1 = setTimeout(fitToContainer, 50);
+    const timer2 = setTimeout(fitToContainer, 250);
+
+    const container = canvasWrapperRef.current?.closest('.editor-layout__canvas');
+    let observer: ResizeObserver | null = null;
+    if (container && window.ResizeObserver) {
+      observer = new ResizeObserver(() => {
+        if (!hasAutoFittedRef.current) {
+          fitToContainer();
+        }
+      });
+      observer.observe(container);
+    }
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      observer?.disconnect();
+    };
+  }, [paperDimensions, bleed, setCanvasZoom]);
 
   // Global listeners to prevent default browser behavior when files are dragged into the window
   useEffect(() => {
@@ -91,8 +144,6 @@ const CalendarCanvas: React.FC = () => {
   const safeMargin = toCanvasPx(5, canvasScale);
 
   if (!page) return null;
-
-  const setCanvasZoom = useCalendarStore((s) => s.setCanvasZoom);
 
   const handleWheel = (e: any) => {
     // Zoom on any wheel event (mouse wheel or touchpad scroll/pinch)

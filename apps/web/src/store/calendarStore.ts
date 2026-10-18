@@ -333,7 +333,7 @@ export const useCalendarStore = create<CalendarStoreState & CalendarStoreActions
       editor: {
         activePageIndex: 0,
         selectedRegionId: null,
-        canvasZoom: 1.0,
+        canvasZoom: 0.22,
         showBleedGuides: true,
         showSafeGuides: true,
         offsetStepMm: 1,

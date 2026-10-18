@@ -144,21 +144,19 @@ const Toolbar: React.FC = () => {
           className="btn btn--ghost btn--icon btn--sm tooltip"
           data-tooltip="Ajustar a página"
           onClick={() => {
-            // Estimate the available canvas area (viewport minus sidebar, panel, toolbar, nav)
-            const sidebarW = 280;
-            const panelW = 320;
-            const toolbarH = 48;
-            const navH = 96;
-            const padding = 32;
-            const availW = window.innerWidth - sidebarW - panelW - padding * 2;
-            const availH = window.innerHeight - toolbarH - navH - padding * 2;
+            const container = document.querySelector('.editor-layout__canvas');
+            const rect = container?.getBoundingClientRect();
+            const paddingX = 96;
+            const paddingY = 48;
+            const availW = (rect?.width ?? (window.innerWidth - 600)) - paddingX;
+            const availH = (rect?.height ?? (window.innerHeight - 150)) - paddingY;
             const paper = project.globalSettings.paperDimensions;
             const bleed = project.globalSettings.bleed;
             const dpi = 300;
-            const totalW = (paper.widthMm + bleed.leftMm + bleed.rightMm) / 25.4 * dpi;
-            const totalH = (paper.heightMm + bleed.topMm + bleed.bottomMm) / 25.4 * dpi;
+            const totalW = ((paper.widthMm + bleed.leftMm + bleed.rightMm) / 25.4) * dpi;
+            const totalH = ((paper.heightMm + bleed.topMm + bleed.bottomMm) / 25.4) * dpi;
             const zoom = Math.min(availW / totalW, availH / totalH);
-            setCanvasZoom(Math.max(0.1, Math.min(zoom, 4)));
+            setCanvasZoom(Math.round(Math.max(0.1, Math.min(zoom, 2.0)) * 100) / 100);
           }}
         >
           <Maximize2 size={16} />
