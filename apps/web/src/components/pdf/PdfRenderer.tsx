@@ -6,9 +6,27 @@ import JSZip from 'jszip';
 import { CalendarProject, mmToPx } from '@calendar-creator/shared-types';
 import MaskedImage from '../canvas/MaskedImage';
 import CalendarGrid from '../canvas/CalendarGrid';
+import { imagePreviewDataCache } from '@/utils/imageCache';
 
 function toCanvasPx(mm: number, scale: number): number {
   return mmToPx(mm, 300) * scale;
+}
+
+async function preloadAndDecodeImage(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = async () => {
+      try {
+        if ('decode' in img) {
+          await img.decode();
+        }
+      } catch (_) {}
+      resolve();
+    };
+    img.onerror = () => resolve();
+    img.src = src;
+  });
 }
 
 interface PdfRendererProps {
@@ -68,32 +86,62 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
       try {
         if (!stageRef.current) return;
         
-        // Wait for Konva stage to finish painting layers
+        // 1. Ensure all fonts (custom web fonts/Google fonts) are fully loaded
+        if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
+          try {
+            await document.fonts.ready;
+          } catch (_) {}
+        }
+
+        // 2. Preload and decode all images required for this page
+        if (page?.imageRegions && page.imageRegions.length > 0) {
+          const promises: Promise<void>[] = [];
+          for (const region of page.imageRegions) {
+            if (region.imageFileId) {
+              const imgData = project.images[region.imageFileId];
+              const src =
+                (imgData?.previewDataUrl && imgData.previewDataUrl.length > 0)
+                  ? imgData.previewDataUrl
+                  : (imagePreviewDataCache.get(region.imageFileId) ?? imgData?.storagePath);
+              if (src) {
+                promises.push(preloadAndDecodeImage(src));
+              }
+            }
+          }
+          await Promise.allSettled(promises);
+        }
+
+        // 3. Wait for Konva stage to finish rendering and updating layer canvas buffers
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              setTimeout(resolve, 60);
+              setTimeout(resolve, 250);
             });
           });
         });
+
+        if (stageRef.current) {
+          stageRef.current.batchDraw();
+        }
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         
         if (!mounted || isGeneratingRef.current) return;
         if (currentPageIndex === project.pages.length - 1) {
           isGeneratingRef.current = true;
         }
 
-        // Preview: Low DPI (72 DPI) - stage is already at 300 DPI, so ratio is 72/300
+        // Preview: Full 300 DPI screen preview (pixelRatio: 1.0) with crisp quality
         const previewDataUrl = stageRef.current.toDataURL({
-          pixelRatio: 72 / 300,
+          pixelRatio: 1.0,
           mimeType: 'image/jpeg',
-          quality: 0.65
+          quality: 0.88
         });
 
-        // Print: True 300 DPI - stage is already at 300 DPI, so ratio is exactly 1
+        // Print: Ultra-crisp 600 DPI (pixelRatio: 2.0) with maximum photographic quality
         const printDataUrl = stageRef.current.toDataURL({
-          pixelRatio: 1,
+          pixelRatio: 2.0,
           mimeType: 'image/jpeg',
-          quality: 0.92
+          quality: 0.98
         });
 
         const pdfWidth = paperDimensions.widthMm + bleed.leftMm + bleed.rightMm;
@@ -105,7 +153,7 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
         }
 
         pdfPreview.addImage(previewDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-        pdfPrint.addImage(printDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'MEDIUM');
+        pdfPrint.addImage(printDataUrl, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
 
         onProgress(currentPageIndex + 1, project.pages.length);
 
@@ -162,7 +210,7 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
   if (!page) return null;
 
   return (
-    <div style={{ position: 'absolute', top: -9999, left: -9999, visibility: 'hidden' }}>
+    <div style={{ position: 'fixed', top: -10000, left: -10000, width: dims.totalW, height: dims.totalH, opacity: 0, pointerEvents: 'none', zIndex: -1000 }}>
       <Stage
         ref={stageRef}
         width={dims.totalW}
@@ -191,6 +239,7 @@ const PdfRenderer: React.FC<PdfRendererProps> = ({ project, onComplete, onError,
               key={region.id}
               region={region}
               canvasScale={canvasScale}
+              isExport={true}
             />
           ))}
 

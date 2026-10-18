@@ -22,6 +22,8 @@ interface MaskedImageProps {
   region: ImageRegion;
   /** Scale factor from mm to canvas pixels */
   canvasScale: number;
+  /** When true, renders cleanly for PDF export without editor controls/selection/empty-dropzones */
+  isExport?: boolean;
 }
 
 /**
@@ -31,14 +33,14 @@ function toCanvasPx(mm: number, scale: number): number {
   return mmToPx(mm, 300) * scale;
 }
 
-const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
+const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale, isExport = false }) => {
   const selectRegion = useCalendarStore((s) => s.selectRegion);
   const selectedRegionId = useCalendarStore((s) => s.editor.selectedRegionId);
   const activePageIndex = useCalendarStore((s) => s.editor.activePageIndex);
   const clearImage = useCalendarStore((s) => s.clearImageFromRegion);
   const images = useCalendarStore((s) => s.project.images);
   const paper = useCalendarStore((s) => s.project.globalSettings.paperDimensions);
-  const isSelected = selectedRegionId === region.id;
+  const isSelected = !isExport && selectedRegionId === region.id;
   const deleteBtnRef = useRef<Konva.Group>(null);
 
   const bringDeleteButtonToTop = useCallback(() => {
@@ -107,8 +109,11 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
     selectRegion(region.id);
   };
 
-  // If no image assigned, render empty dropzone indicator
+  // If no image assigned, render empty dropzone indicator (or nothing in export)
   if (!loadedImage || !imageData) {
+    if (isExport) {
+      return null;
+    }
     return (
       <Group onClick={handleClick} onTap={handleClick}>
         {/* Empty dropzone background */}
@@ -168,10 +173,12 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
             ctx.rect(maskX, maskY, maskW, maskH);
           }
         }}
-        onClick={handleClick}
-        onTap={handleClick}
-        draggable={true}
+        onClick={!isExport ? handleClick : undefined}
+        onTap={!isExport ? handleClick : undefined}
+        draggable={!isExport}
+        listening={!isExport}
         onDragStart={(e) => {
+          if (isExport) return;
           selectRegion(region.id);
           e.target.moveToTop();
           bringDeleteButtonToTop();
@@ -304,29 +311,31 @@ const MaskedImage: React.FC<MaskedImageProps> = ({ region, canvasScale }) => {
         />
 
         {/* Hover overlay — clickable area matching the full mask */}
-        <Rect
-          x={maskX}
-          y={maskY}
-          width={maskW}
-          height={maskH}
-          fill="transparent"
-          stroke={isSelected ? '#0a84ff' : 'transparent'}
-          strokeWidth={isSelected ? 2.5 : 0}
-          hitStrokeWidth={20}
-          cornerRadius={region.mask.shape === 'rounded-rectangle' ? toCanvasPx(region.mask.borderRadiusMm, canvasScale) : 0}
-          onMouseEnter={(e) => {
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'grab';
-          }}
-          onMouseLeave={(e) => {
-            const stage = e.target.getStage();
-            if (stage) stage.container().style.cursor = 'default';
-          }}
-        />
+        {!isExport && (
+          <Rect
+            x={maskX}
+            y={maskY}
+            width={maskW}
+            height={maskH}
+            fill="transparent"
+            stroke={isSelected ? '#0a84ff' : 'transparent'}
+            strokeWidth={isSelected ? 2.5 : 0}
+            hitStrokeWidth={20}
+            cornerRadius={region.mask.shape === 'rounded-rectangle' ? toCanvasPx(region.mask.borderRadiusMm, canvasScale) : 0}
+            onMouseEnter={(e) => {
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'grab';
+            }}
+            onMouseLeave={(e) => {
+              const stage = e.target.getStage();
+              if (stage) stage.container().style.cursor = 'default';
+            }}
+          />
+        )}
       </Group>
 
       {/* Delete button — rendered OUTSIDE the clip group so it's always visible */}
-      {isSelected && (
+      {!isExport && isSelected && (
         <Group
           ref={deleteBtnRef}
           onClick={(e) => {
